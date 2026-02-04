@@ -17,8 +17,6 @@ import {
   FaTimes,
   FaCamera,
   FaSearch,
-  FaEye,
-  FaEyeSlash,
 } from "react-icons/fa";
 
 function Dashboard({ onLogout, userEmail, userName }) {
@@ -60,9 +58,9 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false); // no longer used visually
-  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false); // no longer used visually
+  const [, setIsChangingPassword] = useState(false);
+  const [, setShowNewPassword] = useState(false); // no longer used visually
+  const [, setShowConfirmNewPassword] = useState(false); // no longer used visually
   const [hideChangePasswordCta, setHideChangePasswordCta] = useState(false);
 
   const resetChangePasswordFields = () => {
@@ -343,7 +341,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
           type: "success",
           message: hasPasswordChange ? "Profile and password updated successfully!" : "Profile updated successfully!",
         });
-        
+
         // Auto-hide success message after 3 seconds
         setTimeout(() => {
           setProfileNotification({ type: "", message: "" });
@@ -355,7 +353,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
           const stored = storedStr ? JSON.parse(storedStr) : {};
           const next = { ...stored, name: updated.name, email: updated.email };
           localStorage.setItem('user', JSON.stringify(next));
-        } catch {}
+        } catch { }
       } catch (err) {
         console.error('Failed to save profile:', err);
         const errorMsg =
@@ -405,12 +403,12 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const filteredResponses =
     selectedFormResponses && Array.isArray(selectedFormResponses.responses)
       ? selectedFormResponses.responses.filter((response) => {
-          const term = responsesSearchTerm.trim().toLowerCase();
-          if (!term) return true;
-          const name = (response.respondent_name || "").toLowerCase();
-          const email = (response.respondent_email || "").toLowerCase();
-          return name.includes(term) || email.includes(term);
-        })
+        const term = responsesSearchTerm.trim().toLowerCase();
+        if (!term) return true;
+        const name = (response.respondent_name || "").toLowerCase();
+        const email = (response.respondent_email || "").toLowerCase();
+        return name.includes(term) || email.includes(term);
+      })
       : [];
 
   return (
@@ -474,7 +472,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
                   >
                     <div className="form-card-header">
                       <h2>{form.title || "Untitled Form"}</h2>
-                      <span className={`status-badge ${String(form.status||'active').toLowerCase()}`}> 
+                      <span className={`status-badge ${String(form.status || 'active').toLowerCase()}`}>
                         {String(form.status || 'active').toUpperCase()}
                       </span>
                       <div className="card-actions">
@@ -517,13 +515,13 @@ function Dashboard({ onLogout, userEmail, userName }) {
                         <FaEdit /> Edit
                       </button>
                       <button
-                        className={`toggle-switch ${String(form.status||'active').toLowerCase() === 'active' ? 'active' : 'inactive'}`}
-                        title={String(form.status||'active').toLowerCase() === 'active' ? 'Click to deactivate' : 'Click to activate'}
+                        className={`toggle-switch ${String(form.status || 'active').toLowerCase() === 'active' ? 'active' : 'inactive'}`}
+                        title={String(form.status || 'active').toLowerCase() === 'active' ? 'Click to deactivate' : 'Click to activate'}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleToggleFormStatus(form.id);
                         }}
-                        aria-label={String(form.status||'active').toLowerCase() === 'active' ? 'Deactivate form' : 'Activate form'}
+                        aria-label={String(form.status || 'active').toLowerCase() === 'active' ? 'Deactivate form' : 'Activate form'}
                       >
                         <span className="knob" />
                       </button>

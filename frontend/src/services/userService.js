@@ -80,7 +80,7 @@ const userService = {
      * @returns {Promise<Object>} Updated user
      */
     async updateUser(id, userData, currentRole) {
-        const desiredRole = (userData?.role || '').toLowerCase();
+
         const originalRole = (currentRole || '').toLowerCase();
 
         // If the original record is a Super Admin, update via super-admins endpoint
