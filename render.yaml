@@ -20,8 +20,7 @@ services:
           property: connectionString
       - key: DB_CONNECTION
         value: pgsql
-    buildCommand: docker build -t eformx-backend .
-
+    dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
 
 databases:
