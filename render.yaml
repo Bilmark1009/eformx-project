@@ -5,7 +5,7 @@ services:
     region: singapore
     plan: free
 
-    repo: https://github.com/USER/eformx-project # Placeholder, Render will auto-detect from connected repo
+
     envVars:
       - key: APP_KEY
         generateValue: true
