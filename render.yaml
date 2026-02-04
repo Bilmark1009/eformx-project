@@ -4,7 +4,7 @@ services:
     runtime: docker
     region: singapore
     plan: free
-    branch: main
+
     repo: https://github.com/USER/eformx-project # Placeholder, Render will auto-detect from connected repo
     envVars:
       - key: APP_KEY
