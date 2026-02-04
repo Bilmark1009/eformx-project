@@ -37,40 +37,44 @@ class FormSeeder extends Seeder
         );
 
         // 3. Create a NEW sample form for testing the public feature
-        $form = Form::create([
-            'user_id' => $user->id,
-            'title' => 'Product Feedback Survey',
-            'description' => 'We would love to hear your thoughts on our new eFormX platform. Please fill out this quick survey!',
-            'status' => 'active',
-            'fields' => [
-                [
-                    'id' => 'rating',
-                    'type' => 'number',
-                    'label' => 'Overall Rating (1-5)',
-                    'required' => true,
-                ],
-                [
-                    'id' => 'feature_interest',
-                    'type' => 'select',
-                    'label' => 'Which feature do you like most?',
-                    'options' => ['Dynamic Builder', 'Analytics Dashboard', 'Public Sharing', 'User Management'],
-                    'required' => true,
-                ],
-                [
-                    'id' => 'comments',
-                    'type' => 'textarea',
-                    'label' => 'Any additional comments?',
-                    'required' => false,
-                ],
-                [
-                    'id' => 'recommend',
-                    'type' => 'radio',
-                    'label' => 'Would you recommend us?',
-                    'options' => ['Yes', 'No', 'Maybe'],
-                    'required' => true,
-                ],
+        $form = Form::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'title' => 'Product Feedback Survey',
             ],
-        ]);
+            [
+                'description' => 'We would love to hear your thoughts on our new eFormX platform. Please fill out this quick survey!',
+                'status' => 'active',
+                'fields' => [
+                    [
+                        'id' => 'rating',
+                        'type' => 'number',
+                        'label' => 'Overall Rating (1-5)',
+                        'required' => true,
+                    ],
+                    [
+                        'id' => 'feature_interest',
+                        'type' => 'select',
+                        'label' => 'Which feature do you like most?',
+                        'options' => ['Dynamic Builder', 'Analytics Dashboard', 'Public Sharing', 'User Management'],
+                        'required' => true,
+                    ],
+                    [
+                        'id' => 'comments',
+                        'type' => 'textarea',
+                        'label' => 'Any additional comments?',
+                        'required' => false,
+                    ],
+                    [
+                        'id' => 'recommend',
+                        'type' => 'radio',
+                        'label' => 'Would you recommend us?',
+                        'options' => ['Yes', 'No', 'Maybe'],
+                        'required' => true,
+                    ],
+                ],
+            ]
+        );
 
         $this->command->info('New sample form created successfully! ID: ' . $form->id);
     }

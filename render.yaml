@@ -20,6 +20,8 @@ services:
           property: connectionString
       - key: DB_CONNECTION
         value: pgsql
+      - key: RUN_SEEDS
+        value: true
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
 
