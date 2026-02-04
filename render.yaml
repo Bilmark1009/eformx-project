@@ -13,11 +13,7 @@ services:
         value: production
       - key: APP_DEBUG
         value: false
-      - key: APP_URL
-        fromService:
-          type: web
-          name: eformx-backend
-          property: url
+
       - key: DB_URL
         fromDatabase:
           name: eformx-db
@@ -25,7 +21,7 @@ services:
       - key: DB_CONNECTION
         value: pgsql
     buildCommand: docker build -t eformx-backend .
-    startCommand: "apache2-foreground"
+
     dockerContext: ./backend
 
 databases:
