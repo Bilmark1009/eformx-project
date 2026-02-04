@@ -5,6 +5,7 @@ import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import logo from "../assets/eFormX1.png";
 
 import authService from "../services/authService";
+import api from "../services/api";
 
 function Login({ setUser }) {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ function Login({ setUser }) {
       let message = "Invalid email or password";
 
       if (!err.response) {
-        message = "Cannot connect to server. Please ensure the backend is running at http://127.0.0.1:8000";
+        message = `Cannot connect to server. Please ensure the backend is running at ${api.defaults.baseURL}`;
       } else if (err.response.data && err.response.data.message) {
         message = err.response.data.message;
       }
