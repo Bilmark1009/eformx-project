@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: eformx-backend
+    runtime: docker
+    region: singapore
+    plan: free
+    branch: main
+    repo: https://github.com/USER/eformx-project # Placeholder, Render will auto-detect from connected repo
+    envVars:
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        fromService:
+          type: web
+          name: eformx-backend
+          property: url
+      - key: DB_URL
+        fromDatabase:
+          name: eformx-db
+          property: connectionString
+      - key: DB_CONNECTION
+        value: pgsql
+    buildCommand: docker build -t eformx-backend .
+    startCommand: "apache2-foreground"
+    dockerContext: ./backend
+
+databases:
+  - name: eformx-db
+    databaseName: eformx
+    user: eformx_user
+    plan: free
+    region: singapore
