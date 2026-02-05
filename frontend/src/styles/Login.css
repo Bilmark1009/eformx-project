@@ -114,13 +114,29 @@
   }
 }
 
-.back-icon {
-  position: absolute;
-  left: 25px;
-  top: 25px;
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px solid #0f4c5c;
+  background: transparent;
+  color: #0f4c5c;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  color: #123c4a;
-  font-size: 18px;
+  margin-top: 10px;
+}
+
+.back-button:hover {
+  background: rgba(15, 76, 92, 0.08);
+}
+
+.back-button-icon {
+  font-size: 14px;
 }
 
 /* Logo control */

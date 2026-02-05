@@ -36,8 +36,6 @@ function ForgotPassword() {
       </div>
 
       <div className="login-card">
-        <FaArrowLeft className="back-icon" onClick={() => navigate('/')} />
-
         <h2>Forgot Password</h2>
 
         <div className="input-group">
@@ -53,6 +51,14 @@ function ForgotPassword() {
         {message && <p className="success-message">{message}</p>}
         <button className="login-btn" onClick={submit} disabled={loading}>
           {loading ? "Sending..." : "Send Reset Link"}
+        </button>
+        <button
+          type="button"
+          className="back-button"
+          onClick={() => navigate("/")}
+        >
+          <FaArrowLeft className="back-button-icon" />
+          <span>Return to Login Page</span>
         </button>
       </div>
     </div>

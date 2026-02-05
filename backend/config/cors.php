@@ -19,7 +19,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://e-formx.netlify.app'],
+    'allowed_origins' => ['https://e-formx.netlify.app',
+                        'http://localhost:3000',
+                        'http://localhost:127.0.0.1:3000'],
 
     'allowed_origins_patterns' => ['.*'],
 
