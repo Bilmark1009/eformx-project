@@ -33,6 +33,7 @@ class AuthController extends Controller
                     'name' => $admin->name,
                     'email' => $admin->email,
                     'role' => 'Super Admin',
+                    'photo' => $this->resolvePhotoUrl($admin->avatar_url ?? null),
                     'token' => $token,
                 ]);
             }
@@ -58,6 +59,7 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => 'User',
+                    'photo' => $this->resolvePhotoUrl($user->avatar_url ?? null),
                     'token' => $token,
                 ]);
             }
@@ -170,7 +172,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Update the authenticated user's profile (name/email/password).
+     * Update the authenticated user's profile (name/email/password/photo).
      * Works for both SuperAdmin and regular User.
      */
     public function updateProfile(Request $request)
@@ -187,12 +189,14 @@ class AuthController extends Controller
                 'name' => 'sometimes|required|string|max:255',
                 'email' => ['sometimes','required','email:rfc,dns', Rule::unique('super_admins')->ignore($authUser->id)],
                 'password' => 'sometimes|nullable|string|min:6',
+                'photo' => 'sometimes|nullable|string', // base64 data URL or absolute URL
             ];
         } else { // regular User
             $rules = [
                 'name' => 'sometimes|required|string|max:255',
                 'email' => ['sometimes','required','email:rfc,dns', Rule::unique('users')->ignore($authUser->id)],
                 'password' => 'sometimes|nullable|string|min:6',
+                'photo' => 'sometimes|nullable|string',
             ];
         }
 
@@ -209,6 +213,15 @@ class AuthController extends Controller
             $authUser->password = Hash::make($validated['password']);
         }
 
+        // Handle photo upload or URL
+        if (array_key_exists('photo', $validated) && !empty($validated['photo'])) {
+            $photoValue = $validated['photo'];
+            $storedPath = $this->storePhoto($photoValue, $authUser->id);
+            if ($storedPath) {
+                $authUser->avatar_url = $storedPath;
+            }
+        }
+
         $authUser->save();
 
         // Normalize response similar to login payload
@@ -217,6 +230,7 @@ class AuthController extends Controller
             'name' => $authUser->name,
             'email' => $authUser->email,
             'role' => $authUser instanceof SuperAdmin ? 'Super Admin' : 'User',
+            'photo' => $this->resolvePhotoUrl($authUser->avatar_url ?? null),
         ];
 
         return response()->json($payload);
@@ -251,4 +265,56 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Password updated successfully']);
     }
+
+    /**
+     * Store a base64 data URL image to public/avatars and return relative path.
+     * If input is already an absolute URL, return it unchanged.
+     */
+    private function storePhoto(string $photoValue, int $ownerId): ?string
+    {
+        // If it's an absolute URL, keep as-is
+        if (preg_match('/^https?:\/\//i', $photoValue)) {
+            return $photoValue;
+        }
+        // Expecting data URL: data:image/png;base64,...
+        if (!str_starts_with($photoValue, 'data:image')) {
+            return null;
+        }
+        $parts = explode(',', $photoValue, 2);
+        if (count($parts) !== 2) {
+            return null;
+        }
+        $meta = $parts[0];
+        $data = base64_decode($parts[1]);
+        if ($data === false) {
+            return null;
+        }
+        $ext = 'png';
+        if (preg_match('/data:image\/(\w+);base64/', $meta, $m)) {
+            $ext = strtolower($m[1]);
+        }
+        $filename = 'avatar_'.$ownerId.'_'.time().'.'.$ext;
+        $dir = public_path('avatars');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $path = $dir.DIRECTORY_SEPARATOR.$filename;
+        file_put_contents($path, $data);
+        // Return relative path to public
+        return '/avatars/'.$filename;
+    }
+
+    /**
+     * Turn stored relative path or URL into absolute URL using APP_URL.
+     */
+    private function resolvePhotoUrl(?string $stored): ?string
+    {
+        if (!$stored) return null;
+        if (preg_match('/^https?:\/\//i', $stored)) {
+            return $stored;
+        }
+        $base = rtrim(config('app.url', env('APP_URL', 'http://localhost')), '/');
+        return $base.$stored;
+    }
+
 }
