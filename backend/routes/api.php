@@ -15,6 +15,23 @@ Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 Route::get('/forms/{id}/public', [FormController::class, 'showPublic']);
 Route::post('/forms/{formId}/responses', [FormResponseController::class, 'store']);
 
+// Diagnostic route - Test Email
+Route::get('/test-mail', function () {
+    try {
+        \Illuminate\Support\Facades\Mail::raw('Test connection from EFormX', function ($message) {
+            $message->to('eformxdetails@gmail.com')
+                ->subject('SMTP Diagnostic Test');
+        });
+        return response()->json(['message' => 'Email sent successfully! Your configuration is correct.']);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'message' => 'Email failed to send.',
+            'error' => $e->getMessage(),
+            'trace' => substr($e->getTraceAsString(), 0, 500)
+        ], 500);
+    }
+});
+
 // Protected routes (require authentication)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -35,7 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // User management (for SuperAdmin)
     Route::apiResource('users', UserController::class);
     // SuperAdmin management (list/create/update/delete)
-    Route::apiResource('super-admins', SuperAdminController::class)->only(['index','store','update','destroy']);
+    Route::apiResource('super-admins', SuperAdminController::class)->only(['index', 'store', 'update', 'destroy']);
 
     // Notifications for SuperAdmin
     Route::get('/notifications', [NotificationController::class, 'index']);
