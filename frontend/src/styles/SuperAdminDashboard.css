@@ -5,6 +5,15 @@
 }
 
 /* HEADER */
+/* .sa-header {
+  background: #0f4c5c;
+  color: white;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+} */
 .sa-header {
   background: #0f4c5c;
   color: white;
@@ -13,6 +22,9 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
+  width: 100%; /* Add this */
+  box-sizing: border-box; /* Add this */
+  margin: 0; /* Add this */
 }
 
 .sa-logo {
@@ -130,13 +142,41 @@ tbody tr:hover {
   }
 }
 
-/* Mobile */
-@media (max-width: 768px) {
-
+ @media (max-width: 768px) {
   .sa-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    padding: 14px 20px;
+  }
+
+  .sa-logo {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .sa-right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 15px;
+    margin-top: 0;
+  }
+
+  /* Bell icon positioned first (left side) */
+  .header-bell-icon {
+    order: 1;
+  }
+
+  /* Profile positioned second (right side) */
+  .profile {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    order: 2;
+  }
+
+  /* Hide profile name text on mobile */
+  .profile-name-with-bell {
+    display: none;
   }
 
   .page-title {
@@ -144,18 +184,25 @@ tbody tr:hover {
     align-items: flex-start;
     gap: 15px;
   }
-    .page-actions {
-    width: 100%; /* Make it full width */
-    margin-left: 0; /* Remove auto margin */
+  
+  .page-actions {
+    width: 100%;
+    margin-left: 0;
     margin-right: 0;
   }
-    .search-wrapper {
+  
+  .search-wrapper {
     width: 100%;
   }
 
   .create-account-btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .table-card {
+    margin: 0 20px 30px;
+    padding: 20px;
   }
 
   th, td {
@@ -167,15 +214,30 @@ tbody tr:hover {
 
 @media (max-width: 480px) {
 
+  .sa-header {
+    padding: 12px 15px;
+    margin: 0;
+  }
+
   .sa-logo {
     font-size: 18px;
   }
-  .header-bell-icon {
-    font-size: 16px;
+
+  .logo-img {
+    height: 28px;
   }
 
-  .profile span {
-    display: none; 
+  .header-bell-icon {
+    font-size: 20px;
+  }
+
+  .header-profile-pic {
+    width: 34px;
+    height: 34px;
+  }
+
+  .sa-right {
+    gap: 12px;
   }
 
   th, td {
@@ -247,13 +309,15 @@ tbody tr:hover {
 /* Profile card */
 .profile-modal-card {
   background: #f9f9f9;
-  width: 420px;              /* ⬅ bigger width */
-  min-height: 380px;         /* ⬅ makes it feel like a real profile card */
+  width: 90%; /* Change from fixed 420px */
+  max-width: 420px; /* Add max-width */
+  min-height: 380px;
   border-radius: 20px;
-  padding: 50px 30px 30px;   /* more breathing space */
+  padding: 50px 30px 30px;
   text-align: center;
   box-shadow: 0 20px 40px rgba(0,0,0,0.25);
   position: relative;
+  box-sizing: border-box; /* Add this */
 }
 
 
@@ -287,7 +351,7 @@ tbody tr:hover {
 }
 
 /* Profile picture */
- .profile-modal-card .profile-picture {
+.profile-modal-card .profile-picture {
   position: relative; 
   width: 160px;
   height: 160px;
@@ -310,8 +374,14 @@ tbody tr:hover {
   font-weight: 700;
   margin-bottom: 40px;
   color: #222;
+  word-wrap: break-word; /* Add this for long names */
 }
-
+/* .profile-modal-card .profile-name {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 40px;
+  color: #222;
+} */
 
 /* Log out button - red style */
 .profile-modal-card .logout-btn {
@@ -418,14 +488,15 @@ tbody tr:hover {
 
 /* Inputs */
 .profile-input {
-  width: 80%;
+  width: 100%; /* Change from 80% */
+  max-width: 300px; /* Add max-width */
   padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid #ccc;
   font-size: 16px;
   transition: border 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
-
 .profile-input:focus {
   outline: none;
   border-color: #4a90e2;
@@ -555,3 +626,150 @@ tbody tr:hover {
   border-color: #0f4c5c;
   box-shadow: 0 0 0 2px rgba(15, 76, 92, 0.15);
 }
+
+
+/* Buttons - make them responsive */
+.edit-profile-btn,
+.profile-modal-card .logout-btn,
+.save-btn {
+  width: 100%; /* Make full width on mobile */
+  max-width: 280px; /* But cap the width */
+  box-sizing: border-box;
+}
+/* Mobile specific adjustments */
+@media (max-width: 768px) {
+  .profile-modal-card {
+    width: 92%;
+    max-width: 380px;
+    padding: 40px 25px 25px;
+  }
+
+  .profile-modal-card .profile-picture {
+    width: 140px;
+    height: 140px;
+  }
+
+  .profile-modal-card .profile-name {
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+  }
+
+  .edit-profile-btn,
+  .profile-modal-card .logout-btn,
+  .save-btn {
+    padding: 12px 40px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-modal-card {
+    width: 95%;
+    max-width: 340px;
+    padding: 35px 20px 20px;
+    min-height: 320px;
+  }
+
+  .profile-modal-card .profile-picture {
+    width: 120px;
+    height: 120px;
+  }
+
+  .profile-modal-card .profile-picture img {
+    border: 3px solid #ddd; /* Thinner border on small screens */
+  }
+
+  .profile-modal-card .profile-name {
+    font-size: 1.3rem;
+    margin-bottom: 25px;
+  }
+
+  .edit-profile-btn,
+  .profile-modal-card .logout-btn,
+  .save-btn {
+    padding: 11px 35px;
+    font-size: 0.9rem;
+  }
+
+  .profile-modal-card .profile-upload-icon {
+    width: 35px;
+    height: 35px;
+    font-size: 22px;
+    line-height: 35px;
+  }
+
+  .profile-input {
+    font-size: 14px;
+    padding: 9px 12px;
+  }
+
+  .success-banner {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .profile-modal-card {
+    width: 96%;
+    padding: 30px 15px 15px;
+  }
+
+  .profile-modal-card .profile-picture {
+    width: 100px;
+    height: 100px;
+  }
+
+  .profile-modal-card .profile-name {
+    font-size: 1.2rem;
+  }
+}
+
+
+/* Change password link */
+.change-password-link {
+  color: #0f4c5c;
+  font-weight: 600;
+  margin-top: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.change-password-link:hover {
+  text-decoration: underline;
+}
+
+/* Password section */
+.password-section {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
+  gap: 10px;
+}
+
+/* Button group */
+.profile-btn-group {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 25px;
+}
+/* Save button */
+.save-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 30px;
+  border: none;
+  background: #0f4c5c;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.save-btn:hover {
+  opacity: 0.9;
+}
+

@@ -77,3 +77,70 @@
   margin-bottom: 10px;
   font-size: 14px;
 }
+
+/* ==================== MODAL RESPONSIVE DESIGN ==================== */
+@media (max-width: 768px) {
+  .modal-container {
+    width: 90%;
+    max-width: 380px;
+    padding: 20px;
+  }
+
+  .modal-header h2 {
+    font-size: 20px;
+  }
+
+  .modal-form input,
+  .modal-form select {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .create-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .success-msg,
+  .error-msg {
+    font-size: 13px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-container {
+    width: 92%;
+    max-width: 340px;
+    padding: 18px;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
+  }
+
+  .close-icon {
+    font-size: 18px;
+  }
+
+  .modal-form {
+    gap: 12px;
+  }
+
+  .modal-form input,
+  .modal-form select {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .create-btn {
+    padding: 11px;
+    font-size: 14px;
+  }
+
+  .success-msg,
+  .error-msg {
+    font-size: 12px;
+    padding: 9px;
+  }
+}

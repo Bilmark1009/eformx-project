@@ -22,10 +22,19 @@ function SuperAdminDashboard({ onLogout }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
+  const [passwordUI, setPasswordUI] = useState({
+  current: "",
+  newPass: "",
+  confirm: ""
+});
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+
+
   const [searchTerm, setSearchTerm] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
+  
 
 
   // Load accounts from backend on mount
@@ -546,6 +555,42 @@ function SuperAdminDashboard({ onLogout }) {
               placeholder="Email"
               className="profile-input"
             />
+            {/* ================= CHANGE PASSWORD TOGGLE ================= */}
+
+              <p
+                  className="change-password-link"
+                  onClick={() => setShowPasswordFields(!showPasswordFields)}
+                >
+                  Change Password
+                </p>
+
+                {showPasswordFields && (
+                  <div className="password-section">
+                    <input
+                      type="password"
+                      placeholder="New Password"
+                      className="profile-input"
+                      value={passwordUI.newPass}
+                      onChange={(e) =>
+                        setPasswordUI({ ...passwordUI, newPass: e.target.value })
+                      }
+                    />
+
+                    <input
+                      type="password"
+                      placeholder="Confirm New Password"
+                      className="profile-input"
+                      value={passwordUI.confirm}
+                      onChange={(e) =>
+                        setPasswordUI({ ...passwordUI, confirm: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
+
+            {/* ========================================================= */}
+
+
 
             <button className="save-btn" onClick={handleSaveProfile}>
               Save Changes
