@@ -93,7 +93,7 @@ class AuthController extends Controller
         // Find user (check both Users and SuperAdmins)
         $user = User::where('email', $email)->first();
         $admin = null;
-        
+
         if (!$user) {
             $admin = SuperAdmin::where('email', $email)->first();
         }
@@ -143,7 +143,7 @@ class AuthController extends Controller
         // Check both Users and SuperAdmins
         $user = User::where('email', $request->email)->first();
         $admin = null;
-        
+
         if (!$user) {
             $admin = SuperAdmin::where('email', $request->email)->first();
         }
@@ -187,14 +187,14 @@ class AuthController extends Controller
         if ($authUser instanceof SuperAdmin) {
             $rules = [
                 'name' => 'sometimes|required|string|max:255',
-                'email' => ['sometimes','required','email:rfc,dns', Rule::unique('super_admins')->ignore($authUser->id)],
+                'email' => ['sometimes', 'required', 'email', Rule::unique('super_admins')->ignore($authUser->id)],
                 'password' => 'sometimes|nullable|string|min:6',
                 'photo' => 'sometimes|nullable|string', // base64 data URL or absolute URL
             ];
         } else { // regular User
             $rules = [
                 'name' => 'sometimes|required|string|max:255',
-                'email' => ['sometimes','required','email:rfc,dns', Rule::unique('users')->ignore($authUser->id)],
+                'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($authUser->id)],
                 'password' => 'sometimes|nullable|string|min:6',
                 'photo' => 'sometimes|nullable|string',
             ];
@@ -293,15 +293,15 @@ class AuthController extends Controller
         if (preg_match('/data:image\/(\w+);base64/', $meta, $m)) {
             $ext = strtolower($m[1]);
         }
-        $filename = 'avatar_'.$ownerId.'_'.time().'.'.$ext;
+        $filename = 'avatar_' . $ownerId . '_' . time() . '.' . $ext;
         $dir = public_path('avatars');
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);
         }
-        $path = $dir.DIRECTORY_SEPARATOR.$filename;
+        $path = $dir . DIRECTORY_SEPARATOR . $filename;
         file_put_contents($path, $data);
         // Return relative path to public
-        return '/avatars/'.$filename;
+        return '/avatars/' . $filename;
     }
 
     /**
@@ -309,12 +309,13 @@ class AuthController extends Controller
      */
     private function resolvePhotoUrl(?string $stored): ?string
     {
-        if (!$stored) return null;
+        if (!$stored)
+            return null;
         if (preg_match('/^https?:\/\//i', $stored)) {
             return $stored;
         }
         $base = rtrim(config('app.url', env('APP_URL', 'http://localhost')), '/');
-        return $base.$stored;
+        return $base . $stored;
     }
 
 }
