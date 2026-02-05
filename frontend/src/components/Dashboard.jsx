@@ -4,6 +4,7 @@ import CreateFormModal from "./Createformmodal";
 import logo from "../assets/eFormX.png";
 import headerLogo from "../assets/logoforheader.png";
 import formService from "../services/formService";
+import authService from "../services/authService";
 import {
   FaBell,
   FaPlus,
@@ -48,7 +49,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [isProfileEditMode, setIsProfileEditMode] = useState(false);
   const [adminName, setAdminName] = useState(userName || "Admin");
   const [adminEmail, setAdminEmail] = useState(userEmail || "admin@eformx.com");
-  const [adminAvatar, setAdminAvatar] = useState(defaultAdminAvatar);
+  const [adminAvatar, setAdminAvatar] = useState(() => {
+    const u = authService.getCurrentUser();
+    return (u && u.photo) ? u.photo : defaultAdminAvatar;
+  });
   const [tempAdminName, setTempAdminName] = useState(userName || "Admin");
   const [tempAdminEmail, setTempAdminEmail] = useState(userEmail || "admin@eformx.com");
   const [tempAdminAvatar, setTempAdminAvatar] = useState(defaultAdminAvatar);
@@ -298,7 +302,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
     (async () => {
       try {
-        const authService = (await import("../services/authService")).default;
 
         // If user entered a new password, validate it here (no separate save button)
         const hasPasswordChange = !!newPassword || !!confirmNewPassword;
@@ -317,6 +320,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         const updated = await authService.updateProfile({
           name: trimmedName,
           email: trimmedEmail,
+          photo: tempAdminAvatar,
         });
 
         // If requested, persist password change
@@ -333,7 +337,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         // Update local UI state
         setAdminName(updated.name || trimmedName);
         setAdminEmail(updated.email || trimmedEmail);
-        setAdminAvatar(tempAdminAvatar || defaultAdminAvatar);
+        setAdminAvatar(updated.photo || tempAdminAvatar || defaultAdminAvatar);
         setIsProfileEditMode(false);
 
         // Show success notification
@@ -351,7 +355,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         try {
           const storedStr = localStorage.getItem('user');
           const stored = storedStr ? JSON.parse(storedStr) : {};
-          const next = { ...stored, name: updated.name, email: updated.email };
+          const next = { ...stored, name: updated.name, email: updated.email, photo: updated.photo };
           localStorage.setItem('user', JSON.stringify(next));
         } catch { }
       } catch (err) {

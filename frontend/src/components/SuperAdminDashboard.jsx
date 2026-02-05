@@ -94,7 +94,7 @@ function SuperAdminDashboard({ onLogout }) {
       return {
         name: currentUser.name,
         email: currentUser.email,
-        photo: savedObj?.photo || "https://i.pravatar.cc/150?img=5",
+        photo: currentUser.photo || savedObj?.photo || "https://i.pravatar.cc/150?img=5",
       };
     }
 
@@ -113,6 +113,7 @@ function SuperAdminDashboard({ onLogout }) {
       const updated = await authService.updateProfile({
         name: superAdminProfile.name,
         email: superAdminProfile.email,
+        photo: superAdminProfile.photo,
       });
 
       // Keep local UI profile in sync
@@ -120,6 +121,7 @@ function SuperAdminDashboard({ onLogout }) {
         ...superAdminProfile,
         name: updated.name,
         email: updated.email,
+        photo: updated.photo || superAdminProfile.photo,
       };
       setSuperAdminProfile(nextProfile);
       localStorage.setItem("superAdminProfile", JSON.stringify(nextProfile));
