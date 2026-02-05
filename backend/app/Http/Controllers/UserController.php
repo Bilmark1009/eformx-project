@@ -92,10 +92,10 @@ class UserController extends Controller
             try {
                 Mail::to($user->email)->send(new AccountCreatedMail($user->name, $user->email, $rawPassword));
             } catch (\Throwable $e) {
-                Log::error('Failed to send AccountCreatedMail', [
+                Log::error('AccountCreatedMail delivery failed', [
                     'user_id' => $user->id,
                     'email' => $user->email,
-                    'error' => $e->getMessage(),
+                    'exception' => $e,
                 ]);
                 // Do not block user creation on mail failure
                 Notification::create([
@@ -284,9 +284,9 @@ class UserController extends Controller
         try {
             Mail::to($email)->send(new AccountDeletedMail($name, $email));
         } catch (\Throwable $e) {
-            Log::error('Failed to send AccountDeletedMail', [
+            Log::error('AccountDeletedMail delivery failed', [
                 'email' => $email,
-                'error' => $e->getMessage(),
+                'exception' => $e,
             ]);
             // Emit a warning notification if mail fails
             Notification::create([

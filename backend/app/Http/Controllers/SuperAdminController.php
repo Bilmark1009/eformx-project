@@ -67,9 +67,9 @@ class SuperAdminController extends Controller
         try {
             Mail::to($admin->email)->send(new AccountCreatedMail($admin->name, $admin->email, $rawPassword));
         } catch (\Throwable $e) {
-            Log::error('Failed to send SuperAdmin AccountCreatedMail', [
+            Log::error('SuperAdmin AccountCreatedMail delivery failed', [
                 'email' => $admin->email,
-                'error' => $e->getMessage(),
+                'exception' => $e,
             ]);
             Notification::create([
                 'title' => 'Mail Delivery Warning',
@@ -184,9 +184,9 @@ class SuperAdminController extends Controller
         try {
             Mail::to($email)->send(new AccountDeletedMail($name, $email));
         } catch (\Throwable $e) {
-            Log::error('Failed to send SuperAdmin AccountDeletedMail', [
+            Log::error('SuperAdmin AccountDeletedMail delivery failed', [
                 'email' => $email,
-                'error' => $e->getMessage(),
+                'exception' => $e,
             ]);
             Notification::create([
                 'title' => 'Mail Delivery Warning',
