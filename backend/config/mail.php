@@ -76,8 +76,8 @@ return [
             'channel' => env('MAIL_LOG_CHANNEL'),
         ],
 
-        'resend' => [
-            'transport' => 'resend',
+        'sendinblue' => [
+            'transport' => 'sendinblue',
         ],
 
         'array' => [
@@ -116,7 +116,7 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'onboarding@resend.dev'),
+        'address' => env('MAIL_FROM_ADDRESS', 'eformxdetails@gmail.com'),
         'name' => env('MAIL_FROM_NAME', 'EFormX'),
     ],
 
