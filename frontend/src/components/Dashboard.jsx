@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import CreateFormModal from "./Createformmodal";
 import logo from "../assets/eFormX.png";
 import headerLogo from "../assets/logoforheader.png";
 import formService from "../services/formService";
+import notificationsService from "../services/notificationsService";
 import authService from "../services/authService";
 import {
   FaBell,
@@ -45,6 +47,12 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [selectedFormResponses, setSelectedFormResponses] = useState(null);
   const [responsesSearchTerm, setResponsesSearchTerm] = useState("");
 
+  // Notifications
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const navigate = useNavigate();
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProfileEditMode, setIsProfileEditMode] = useState(false);
   const [adminName, setAdminName] = useState(userName || "Admin");
@@ -83,6 +91,22 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
   useEffect(() => {
     fetchForms();
+  }, []);
+
+  // Load notifications on mount
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const items = await notificationsService.list();
+        setNotifications(items);
+      } catch (e) {
+        // ignore transient errors
+      }
+    };
+    loadNotifications();
+
+    const interval = setInterval(loadNotifications, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchForms = async () => {
@@ -423,7 +447,74 @@ function Dashboard({ onLogout, userEmail, userName }) {
           <img src={headerLogo} alt="eFormX" className="header-logo" />
         </div>
         <div className="header-right">
-          <FaBell className="icon-bell" />
+          <div style={{ position: "relative", marginRight: 16 }}>
+            <FaBell className="icon-bell" onClick={() => setShowNotifications(v => !v)} style={{ cursor: "pointer" }} />
+            {unreadCount > 0 && (
+              <span style={{
+                position: "absolute",
+                top: -6,
+                right: -6,
+                background: "#ef4444",
+                color: "#fff",
+                borderRadius: "9999px",
+                fontSize: 12,
+                padding: "2px 6px"
+              }}>{unreadCount}</span>
+            )}
+            {showNotifications && (
+              <div style={{
+                position: "absolute",
+                right: 0,
+                top: 28,
+                width: 280,
+                background: "#fff",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                borderRadius: 8,
+                overflow: "hidden",
+                zIndex: 20
+              }}>
+                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 600 }}>Notifications</span>
+                  <button
+                    onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                    style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
+                  >Mark all read</button>
+                  <button
+                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
+                  >Delete all</button>
+                </div>
+                <button
+                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
+                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
+                >View all</button>
+                <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
+                  ) : notifications.map(n => (
+                    <div key={n.id} style={{ padding: 12, borderBottom: "1px solid #f3f4f6", background: n.is_read ? "#fff" : "#f9fafb" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
+                      <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
+                      {!n.is_read && (
+                        <button
+                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                          style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
+                        >Mark read</button>
+                      )}
+                      <button
+                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                        style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
+                        aria-label="Delete notification"
+                        title="Delete notification"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div
             className="admin-profile clickable-profile"
             onClick={handleOpenProfile}

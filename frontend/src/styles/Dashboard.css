@@ -276,7 +276,7 @@ body {
 .btn-link {
   background: transparent;
   border: none;
-  color: var(--text-light);
+  color: #111;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -291,8 +291,20 @@ body {
   justify-content: center;
 }
 
+.card-footer .btn-link {
+  color: #111;
+}
+
+.card-footer .btn-link:hover {
+  color: #000;
+}
+
+.card-footer .btn-link svg {
+  color: inherit;
+}
+
 .btn-link:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .btn-link svg {
