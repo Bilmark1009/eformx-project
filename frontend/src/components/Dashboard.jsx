@@ -264,33 +264,71 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   // ===== EXPORT CSV =====
-  const handleExportCSV = () => {
-    if (!selectedFormResponses) return;
+  const handleExportCSV = async (formId) => {
+    try {
+      let targetForm = selectedFormResponses;
 
-    const headers = [
-      "Submission Date",
-      "Respondent Name",
-      "Respondent Email",
-      "Responses Summary",
-    ];
-    const rows = selectedFormResponses.responses.map((r) => [
-      new Date(r.created_at).toLocaleDateString(),
-      r.respondent_name || "Anonymous",
-      r.respondent_email || "N/A",
-      JSON.stringify(r.responses || {}).substring(0, 100),
-    ]);
+      // If called from analytics or without an open responses modal, fetch fresh data
+      if (formId && String(formId) !== String(selectedFormResponses?.id)) {
+        const responses = await formService.getFormResponses(formId);
+        const selected = forms.find((f) => String(f.id) === String(formId)) || {};
+        const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
+        targetForm = {
+          ...selected,
+          id: formId,
+          fields: Array.isArray(formFields) ? formFields : [],
+          responses: Array.isArray(responses) ? responses : [],
+        };
+      }
 
-    let csvContent = headers.join(",") + "\n";
-    rows.forEach((row) => {
-      csvContent += row.map((cell) => `"${cell}"`).join(",") + "\n";
-    });
+      if (!targetForm) return;
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${selectedFormResponses.title}_responses.csv`;
-    link.click();
+      const fieldOrder = (targetForm.fields || []).map((field, idx) => ({
+        id: field?.id ?? field?.name ?? `q${idx + 1}`,
+        label: field?.label || field?.title || field?.question || field?.name || `Question ${idx + 1}`,
+      }));
+
+      const headers = [
+        "Submission Date",
+        "Respondent Name",
+        "Respondent Email",
+        ...fieldOrder.map((f) => f.label),
+      ];
+
+      const rows = (targetForm.responses || []).map((r) => {
+        const entries = normalizeAnswerEntries(r.responses);
+        return [
+          r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
+          r.respondent_name || "Anonymous",
+          r.respondent_email || "N/A",
+          ...fieldOrder.map((f) => {
+            const match = entries.find((e) => String(e.id) === String(f.id));
+            return formatAnswerValue(match ? match.value : "");
+          }),
+        ];
+      });
+
+      let csvContent = headers.join(",") + "\n";
+      rows.forEach((row) => {
+        csvContent += row
+          .map((cell) => {
+            const safe = cell === undefined || cell === null ? "" : String(cell).replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(",") + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${targetForm.title || "form"}_responses.csv`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export CSV", err);
+      alert("Could not export CSV. Please try again.");
+    }
   };
 
   // ===== PROFILE MANAGEMENT =====
@@ -852,9 +890,8 @@ function Dashboard({ onLogout, userEmail, userName }) {
             <div className="analytics-stats-footer">
               <button
                 className="export-csv-btn"
-                onClick={() => {
-                  setSelectedFormResponses(selectedFormAnalytics);
-                  handleExportCSV();
+                onClick={async () => {
+                  await handleExportCSV(selectedFormAnalytics.id);
                 }}
               >
                 <FaDownload style={{ marginRight: "8px" }} />
@@ -933,11 +970,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
                   )}
                 </tbody>
               </table>
-            </div>
-            <div className="responses-footer">
-              <button className="export-csv-btn" onClick={handleExportCSV}>
-                Export CSV
-              </button>
             </div>
           </div>
         </div>
