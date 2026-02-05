@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import CreateFormModal from "./Createformmodal";
@@ -46,12 +46,14 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
   const [selectedFormResponses, setSelectedFormResponses] = useState(null);
   const [responsesSearchTerm, setResponsesSearchTerm] = useState("");
+  const [activeResponseDetail, setActiveResponseDetail] = useState(null);
 
   // Notifications
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const navigate = useNavigate();
+  const [responseCopyStatus, setResponseCopyStatus] = useState("");
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProfileEditMode, setIsProfileEditMode] = useState(false);
@@ -248,8 +250,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
       const responses = await formService.getFormResponses(formId);
       console.log('Fetched responses:', responses);
       const selected = forms.find((f) => String(f.id) === String(formId));
+      const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
       setSelectedFormResponses({
         ...(selected || {}),
+        fields: Array.isArray(formFields) ? formFields : [],
         responses: Array.isArray(responses) ? responses : []
       });
       setIsResponsesOpen(true);
@@ -428,6 +432,124 @@ function Dashboard({ onLogout, userEmail, userName }) {
     }
   };
 
+  const mapFieldLabels = (fields = []) => {
+    const map = {};
+    fields.forEach((field, idx) => {
+      const key = field?.id ?? field?.name ?? `q${idx + 1}`;
+      const label = field?.label || field?.title || field?.question || field?.name || `Question ${idx + 1}`;
+      if (key) {
+        map[String(key)] = label;
+      }
+    });
+    return map;
+  };
+
+  const responseFieldLabelMap = useMemo(
+    () => mapFieldLabels(selectedFormResponses?.fields || []),
+    [selectedFormResponses]
+  );
+
+  const normalizeAnswerEntries = (responses) => {
+    if (!responses) return [];
+    if (typeof responses === "string") {
+      try {
+        const parsed = JSON.parse(responses);
+        return normalizeAnswerEntries(parsed);
+      } catch (err) {
+        return [{ id: "answer", value: responses }];
+      }
+    }
+    if (Array.isArray(responses)) {
+      return responses.map((entry, idx) => {
+        if (entry && typeof entry === "object") {
+          return {
+            id: entry.id ?? entry.name ?? entry.fieldId ?? `q${idx + 1}`,
+            value: entry.value ?? entry.answer ?? entry.response ?? entry,
+            label: entry.label || entry.question || entry.title || entry.name,
+          };
+        }
+        return { id: `q${idx + 1}`, value: entry };
+      });
+    }
+    if (typeof responses === "object") {
+      return Object.entries(responses).map(([id, value]) => ({ id, value }));
+    }
+    return [];
+  };
+
+  const formatAnswerValue = (value, maxLength) => {
+    let text;
+    if (Array.isArray(value)) {
+      text = value.join(", ");
+    } else if (value && typeof value === "object") {
+      const flatValues = Object.values(value).filter((v) => typeof v !== "object");
+      text = flatValues.length ? flatValues.join(", ") : JSON.stringify(value);
+    } else {
+      text = value === undefined || value === null ? "" : String(value);
+    }
+
+    if (maxLength && text.length > maxLength) {
+      return text.slice(0, maxLength) + "...";
+    }
+    return text;
+  };
+
+  const summarizeResponses = (response) => {
+    const entries = normalizeAnswerEntries(response?.responses);
+    if (!entries.length) return "No answers";
+    const preview = entries.slice(0, 2).map((entry, idx) => {
+      const label = responseFieldLabelMap[entry.id] || entry.label || `Q${idx + 1}`;
+      return `${label}: ${formatAnswerValue(entry.value, 40)}`;
+    });
+    if (entries.length > 2) {
+      preview.push(`(+${entries.length - 2} more)`);
+    }
+    return preview.join(", ");
+  };
+
+  const buildFullSummary = (response) => {
+    const entries = normalizeAnswerEntries(response?.responses);
+    if (!entries.length) return "";
+    return entries
+      .map((entry, idx) => {
+        const label = responseFieldLabelMap[entry.id] || entry.label || `Q${idx + 1}`;
+        return `${label}: ${formatAnswerValue(entry.value)}`;
+      })
+      .join(" | ");
+  };
+
+  const buildResponseDetailText = (response) => {
+    if (!response) return "";
+    const entries = normalizeAnswerEntries(response.responses);
+    const meta = [
+      `Date: ${response.created_at ? new Date(response.created_at).toLocaleString() : "-"}`,
+      `Name: ${response.respondent_name || "Anonymous"}`,
+      `Email: ${response.respondent_email || "N/A"}`,
+    ];
+
+    const qa = entries.map((entry, idx) => {
+      const label = responseFieldLabelMap[entry.id] || entry.label || `Question ${idx + 1}`;
+      const answer = formatAnswerValue(entry.value);
+      return `Question: ${label}\nAnswer: ${answer}`;
+    });
+
+    return [...meta, "", ...qa].join("\n");
+  };
+
+  const handleCopyResponseDetail = async () => {
+    if (!activeResponseDetail) return;
+    const text = buildResponseDetailText(activeResponseDetail);
+    try {
+      await navigator.clipboard.writeText(text);
+      setResponseCopyStatus("Copied");
+      setTimeout(() => setResponseCopyStatus(""), 2000);
+    } catch (err) {
+      console.error("Failed to copy response detail", err);
+      setResponseCopyStatus("Copy failed");
+      setTimeout(() => setResponseCopyStatus(""), 2000);
+    }
+  };
+
   const filteredResponses =
     selectedFormResponses && Array.isArray(selectedFormResponses.responses)
       ? selectedFormResponses.responses.filter((response) => {
@@ -435,7 +557,8 @@ function Dashboard({ onLogout, userEmail, userName }) {
         if (!term) return true;
         const name = (response.respondent_name || "").toLowerCase();
         const email = (response.respondent_email || "").toLowerCase();
-        return name.includes(term) || email.includes(term);
+        const summary = summarizeResponses(response).toLowerCase();
+        return name.includes(term) || email.includes(term) || summary.includes(term);
       })
       : [];
 
@@ -765,6 +888,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
                   setIsResponsesOpen(false);
                   setSelectedFormResponses(null);
                   setResponsesSearchTerm("");
+                  setActiveResponseDetail(null);
                 }}
               >
                 ✕
@@ -784,17 +908,18 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 <tbody>
                   {filteredResponses && filteredResponses.length > 0 ? (
                     filteredResponses.map((response, index) => {
-                      const responsesStr = JSON.stringify(response.responses || {});
+                      const summaryText = summarizeResponses(response);
+                      const fullSummary = buildFullSummary(response);
                       return (
                         <tr key={index}>
                           <td>{new Date(response.created_at).toLocaleDateString()}</td>
                           <td>{response.respondent_name || "Anonymous"}</td>
                           <td>{response.respondent_email || "N/A"}</td>
-                          <td title={responsesStr}>
-                            {responsesStr.substring(0, 50)}{responsesStr.length > 50 ? "..." : ""}
+                          <td title={fullSummary || undefined}>
+                            {summaryText}
                           </td>
                           <td>
-                            <button className="view-btn">View Detail</button>
+                            <button className="view-btn" onClick={() => setActiveResponseDetail(response)}>View Detail</button>
                           </td>
                         </tr>
                       );
@@ -813,6 +938,53 @@ function Dashboard({ onLogout, userEmail, userName }) {
               <button className="export-csv-btn" onClick={handleExportCSV}>
                 Export CSV
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESPONSE DETAIL MODAL */}
+      {activeResponseDetail && (
+        <div className="modal-overlay" onClick={() => setActiveResponseDetail(null)}>
+          <div className="response-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="responses-header response-detail-header">
+              <h3>Response Detail</h3>
+              <div className="response-detail-actions">
+                {responseCopyStatus && <span className="copy-status">{responseCopyStatus}</span>}
+                <button className="copy-all-btn" onClick={handleCopyResponseDetail}>Copy all</button>
+                <button className="close-responses-btn" onClick={() => setActiveResponseDetail(null)}>✕</button>
+              </div>
+            </div>
+            <div className="response-detail-meta">
+              <div className="response-meta-item">
+                <div className="response-meta-label">Date</div>
+                <div className="response-meta-value">{activeResponseDetail.created_at ? new Date(activeResponseDetail.created_at).toLocaleString() : "-"}</div>
+              </div>
+              <div className="response-meta-item">
+                <div className="response-meta-label">Name</div>
+                <div className="response-meta-value">{activeResponseDetail.respondent_name || "Anonymous"}</div>
+              </div>
+              <div className="response-meta-item">
+                <div className="response-meta-label">Email</div>
+                <div className="response-meta-value">{activeResponseDetail.respondent_email || "N/A"}</div>
+              </div>
+            </div>
+            <div className="response-detail-list">
+              {normalizeAnswerEntries(activeResponseDetail.responses).length === 0 ? (
+                <div className="response-detail-empty">No answers provided.</div>
+              ) : (
+                normalizeAnswerEntries(activeResponseDetail.responses).map((entry, idx) => {
+                  const label = responseFieldLabelMap[entry.id] || entry.label || `Question ${idx + 1}`;
+                  return (
+                    <div className="response-detail-row" key={`${entry.id || idx}-${idx}`}>
+                      <div className="response-question">Question</div>
+                      <div className="response-question-text">{label}</div>
+                      <div className="response-answer-label">Answer</div>
+                      <div className="response-answer">{formatAnswerValue(entry.value)}</div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
