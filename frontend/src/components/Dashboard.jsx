@@ -262,31 +262,20 @@ function Dashboard({ onLogout, userEmail, userName }) {
       alert("Could not load responses.");
     }
   };
-
-  const loadFormWithResponses = async (formId) => {
-    const responses = await formService.getFormResponses(formId);
-    const selected = forms.find((f) => String(f.id) === String(formId)) || {};
-    const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
-    return {
-      ...selected,
-      id: formId,
-      fields: Array.isArray(formFields) ? formFields : [],
-      responses: Array.isArray(responses) ? responses : [],
-    };
+  const downloadBlob = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   // ===== EXPORT CSV (RESPONDENT LEVEL) =====
-  const handleExportResponsesCSV = async (formId) => {
+  const handleExportResponsesCSV = async () => {
+    if (!selectedFormResponses) return;
     try {
-      let targetForm = selectedFormResponses;
-
-      if (formId && String(formId) !== String(selectedFormResponses?.id)) {
-        targetForm = await loadFormWithResponses(formId);
-      }
-
-      if (!targetForm) return;
-
-      const fieldOrder = (targetForm.fields || []).map((field, idx) => ({
+      const fieldOrder = (selectedFormResponses.fields || []).map((field, idx) => ({
         id: field?.id ?? field?.name ?? `q${idx + 1}`,
         label: field?.label || field?.title || field?.question || field?.name || `Question ${idx + 1}`,
       }));
@@ -298,7 +287,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         ...fieldOrder.map((f) => f.label),
       ];
 
-      const rows = (targetForm.responses || []).map((r) => {
+      const rows = (selectedFormResponses.responses || []).map((r) => {
         const entries = normalizeAnswerEntries(r.responses);
         return [
           r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
@@ -322,89 +311,33 @@ function Dashboard({ onLogout, userEmail, userName }) {
       });
 
       const blob = new Blob([csvContent], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${targetForm.title || "form"}_responses.csv`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      downloadBlob(blob, `${selectedFormResponses.title || "form"}_responses.csv`);
     } catch (err) {
       console.error("Failed to export responses CSV", err);
       alert("Could not export CSV. Please try again.");
     }
   };
 
-  // ===== EXPORT CSV (ANALYTICS AGGREGATE) =====
-  const handleExportAnalyticsCSV = async (formId) => {
+  // ===== EXPORTS (ANALYTICS ONLY) =====
+  const handleExportAnalyticsCSV = async () => {
+    if (!selectedFormAnalytics?.id) return;
     try {
-      const formToLoad = formId || selectedFormResponses?.id || selectedFormAnalytics?.id;
-      if (!formToLoad) return;
-
-      const targetForm = await loadFormWithResponses(formToLoad);
-      const fieldOrder = (targetForm.fields || []).map((field, idx) => ({
-        id: field?.id ?? field?.name ?? `q${idx + 1}`,
-        label: field?.label || field?.title || field?.question || field?.name || `Question ${idx + 1}`,
-      }));
-
-      const aggregates = {};
-      const responsesArray = targetForm.responses || [];
-      fieldOrder.forEach((f) => {
-        aggregates[String(f.id)] = { label: f.label, total: 0, answers: {} };
-      });
-
-      responsesArray.forEach((resp) => {
-        const entries = normalizeAnswerEntries(resp.responses);
-        entries.forEach((entry) => {
-          const key = String(entry.id);
-          const bucket = aggregates[key];
-          if (!bucket) return;
-          const answerText = formatAnswerValue(entry.value);
-          bucket.total += 1;
-          bucket.answers[answerText] = (bucket.answers[answerText] || 0) + 1;
-        });
-      });
-
-      const headers = ["Question", "Answer", "Count", "Percentage"];
-      const rows = [];
-
-      fieldOrder.forEach((f) => {
-        const bucket = aggregates[String(f.id)];
-        const total = bucket?.total || 0;
-        const answers = bucket?.answers || {};
-        const answerKeys = Object.keys(answers);
-
-        if (answerKeys.length === 0) {
-          rows.push([f.label, "", 0, "0%"]);
-          return;
-        }
-
-        answerKeys.forEach((ans) => {
-          const count = answers[ans];
-          const percent = total > 0 ? ((count / total) * 100).toFixed(2) + "%" : "0%";
-          rows.push([f.label, ans, count, percent]);
-        });
-      });
-
-      let csvContent = headers.join(",") + "\n";
-      rows.forEach((row) => {
-        csvContent += row
-          .map((cell) => {
-            const safe = cell === undefined || cell === null ? "" : String(cell).replace(/"/g, '""');
-            return `"${safe}"`;
-          })
-          .join(",") + "\n";
-      });
-
-      const blob = new Blob([csvContent], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${targetForm.title || "form"}_analytics.csv`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      const res = await formService.exportAnalyticsCsv(selectedFormAnalytics.id);
+      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.csv`);
     } catch (err) {
       console.error("Failed to export analytics CSV", err);
       alert("Could not export analytics CSV. Please try again.");
+    }
+  };
+
+  const handleExportAnalyticsXLSX = async () => {
+    if (!selectedFormAnalytics?.id) return;
+    try {
+      const res = await formService.exportAnalyticsXlsx(selectedFormAnalytics.id);
+      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.xlsx`);
+    } catch (err) {
+      console.error("Failed to export analytics XLSX", err);
+      alert("Could not export analytics XLSX. Please try again.");
     }
   };
 
@@ -967,12 +900,18 @@ function Dashboard({ onLogout, userEmail, userName }) {
             <div className="analytics-stats-footer">
               <button
                 className="export-csv-btn"
-                onClick={async () => {
-                  await handleExportAnalyticsCSV(selectedFormAnalytics.id);
-                }}
+                onClick={handleExportAnalyticsCSV}
               >
                 <FaDownload style={{ marginRight: "8px" }} />
                 Export CSV
+              </button>
+              <button
+                className="export-csv-btn"
+                onClick={handleExportAnalyticsXLSX}
+                style={{ marginLeft: 12 }}
+              >
+                <FaDownload style={{ marginRight: "8px" }} />
+                Export XLSX
               </button>
             </div>
 

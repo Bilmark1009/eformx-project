@@ -71,6 +71,14 @@ const formService = {
         return response.data;
     },
 
+    async exportAnalyticsCsv(id) {
+        return api.get(`/forms/${id}/analytics/export-csv`, { responseType: 'blob' });
+    },
+
+    async exportAnalyticsXlsx(id) {
+        return api.get(`/forms/${id}/analytics/export-xlsx`, { responseType: 'blob' });
+    },
+
     /**
      * Get all responses for a specific form
      * @param {number} formId Form ID
