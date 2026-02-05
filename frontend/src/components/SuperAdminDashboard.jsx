@@ -139,7 +139,6 @@ function SuperAdminDashboard({ onLogout }) {
 
   // Account Logic
   const handleCreateAccount = async (account) => {
-    setIsCreating(true);
     try {
       // Optimistic update - add placeholder immediately
       const tempId = `temp-${Date.now()}`;
@@ -166,8 +165,6 @@ function SuperAdminDashboard({ onLogout }) {
       // Remove optimistic account on error
       setAccounts((prev) => prev.filter(acc => !acc.id.toString().startsWith('temp-')));
       throw e; // allow modal to surface error
-    } finally {
-      setIsCreating(false);
     }
   };
 
@@ -201,7 +198,6 @@ function SuperAdminDashboard({ onLogout }) {
   };
 
   const confirmDelete = async () => {
-    setIsDeleting(true);
     try {
       const target = accountToDelete;
       if (target?.id) {
@@ -228,8 +224,6 @@ function SuperAdminDashboard({ onLogout }) {
         const users = await userService.getUsers();
         setAccounts(users);
       } catch (_) { }
-    } finally {
-      setIsDeleting(false);
     }
   };
 
