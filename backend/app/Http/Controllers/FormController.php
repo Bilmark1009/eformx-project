@@ -110,13 +110,15 @@ class FormController extends Controller
         $form->update($validated);
         $form->load('responses'); // Refresh and eager load
 
-        // Notify owner if form becomes inactive/closed
-        if (array_key_exists('status', $validated) && $validated['status'] !== 'active' && $validated['status'] !== $previousStatus) {
+        // Notify owner if form status changes (active or closed/draft)
+        if (array_key_exists('status', $validated) && $validated['status'] !== $previousStatus) {
             try {
+                $status = $validated['status'];
+                $type = ($status === 'active') ? 'success' : 'warning';
                 Notification::create([
                     'title' => 'Form status changed',
-                    'message' => 'Form "'.$form->title.'" is now '.$validated['status'].'.',
-                    'type' => 'warning',
+                    'message' => 'Form "'.$form->title.'" is now '.$status.'.',
+                    'type' => $type,
                     'recipient_user_id' => $user->id,
                 ]);
             } catch (\Throwable $e) {

@@ -21,7 +21,6 @@ class NotificationController extends Controller
 
         $items = $this->scopeForRecipient(Notification::query(), $user)
             ->latest()
-            ->limit(50)
             ->get();
 
         return response()->json($items);
