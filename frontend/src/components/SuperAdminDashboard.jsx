@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "../styles/SuperAdminDashboard.css";
 import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera } from "react-icons/fa";
 import CreateAccountModal from "./CreateAccountModal";
@@ -26,6 +27,7 @@ function SuperAdminDashboard({ onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
+  const navigate = useNavigate();
 
 
   // Load accounts from backend on mount
@@ -94,7 +96,7 @@ function SuperAdminDashboard({ onLogout }) {
       return {
         name: currentUser.name,
         email: currentUser.email,
-        photo: savedObj?.photo || "https://i.pravatar.cc/150?img=5",
+        photo: currentUser.photo || savedObj?.photo || "https://i.pravatar.cc/150?img=5",
       };
     }
 
@@ -113,6 +115,7 @@ function SuperAdminDashboard({ onLogout }) {
       const updated = await authService.updateProfile({
         name: superAdminProfile.name,
         email: superAdminProfile.email,
+        photo: superAdminProfile.photo,
       });
 
       // Keep local UI profile in sync
@@ -120,6 +123,7 @@ function SuperAdminDashboard({ onLogout }) {
         ...superAdminProfile,
         name: updated.name,
         email: updated.email,
+        photo: updated.photo || superAdminProfile.photo,
       };
       setSuperAdminProfile(nextProfile);
       localStorage.setItem("superAdminProfile", JSON.stringify(nextProfile));
@@ -283,6 +287,10 @@ function SuperAdminDashboard({ onLogout }) {
                     style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
                   >Delete all</button>
                 </div>
+                <button
+                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
+                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
+                >View all</button>
                 <div style={{ maxHeight: 260, overflowY: "auto" }}>
                   {notifications.length === 0 ? (
                     <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
@@ -328,7 +336,6 @@ function SuperAdminDashboard({ onLogout }) {
         </div>
 
       </header>
-
 
       {/* TITLE */}
       <div className="page-title">

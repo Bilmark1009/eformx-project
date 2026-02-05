@@ -28,6 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Form analytics and responses
     Route::get('/forms/{id}/analytics', [FormController::class, 'analytics']);
+    Route::get('/forms/{id}/analytics/export-csv', [FormController::class, 'exportAnalyticsCsv']);
+    Route::get('/forms/{id}/analytics/export-xlsx', [FormController::class, 'exportAnalyticsXlsx']);
     Route::get('/forms/{formId}/responses', [FormResponseController::class, 'index']);
 
     // User management (for SuperAdmin)

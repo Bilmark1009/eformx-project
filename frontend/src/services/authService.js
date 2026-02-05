@@ -77,7 +77,7 @@ const authService = {
 
     /**
      * Update authenticated user's profile
-     * @param {object} payload { name?, email?, password? }
+     * @param {object} payload { name?, email?, password?, photo? }
      */
     async updateProfile(payload) {
         const res = await api.put('/profile', payload);
