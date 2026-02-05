@@ -26,6 +26,9 @@ function SuperAdminDashboard({ onLogout }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const navigate = useNavigate();
 
@@ -139,25 +142,35 @@ function SuperAdminDashboard({ onLogout }) {
 
   // Account Logic
   const handleCreateAccount = async (account) => {
+    setIsCreating(true);
     try {
+      // Optimistic update - add placeholder immediately
+      const tempId = `temp-${Date.now()}`;
+      const optimisticAccount = { ...account, id: tempId, status: 'active' };
+      setAccounts((prev) => [...prev, optimisticAccount]);
+
       const created = await userService.createUser(account);
-      setAccounts((prev) => [...prev, created]);
+
+      // Replace optimistic account with real one
+      setAccounts((prev) => prev.map(acc =>
+        acc.id === tempId ? created : acc
+      ));
       setError("");
+
       // Refresh notifications immediately so the bell reflects the action
       try {
         const items = await notificationsService.list();
         setNotifications(items);
-      } catch (_) {}
-      // Also refresh accounts from backend to confirm state
-      try {
-        const users = await userService.getUsers();
-        setAccounts(users);
-      } catch (_) {}
+      } catch (_) { }
     } catch (e) {
       console.error("Create user failed:", e);
       const message = e?.response?.data?.message || "Failed to create account.";
       setError(message);
+      // Remove optimistic account on error
+      setAccounts((prev) => prev.filter(acc => !acc.id.toString().startsWith('temp-')));
       throw e; // allow modal to surface error
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -171,7 +184,7 @@ function SuperAdminDashboard({ onLogout }) {
     try {
       const id = accountToEdit.id;
       const updated = await userService.updateUser(id, updatedAccount, accountToEdit.role);
-      setAccounts((prev) => 
+      setAccounts((prev) =>
         prev.map(acc => acc.id === id ? updated : acc)
       );
       setAccountToEdit(null);
@@ -191,29 +204,35 @@ function SuperAdminDashboard({ onLogout }) {
   };
 
   const confirmDelete = async () => {
+    setIsDeleting(true);
     try {
       const target = accountToDelete;
       if (target?.id) {
-        await userService.deleteUser(target.id, target.role);
+        // Optimistic update - remove immediately
         setAccounts((prev) => prev.filter(acc => acc.id !== target.id));
+        setIsDeleteModalOpen(false);
+        setAccountToDelete(null);
+
+        await userService.deleteUser(target.id, target.role);
+
         // Refresh notifications immediately so the bell reflects the action
         try {
           const items = await notificationsService.list();
           setNotifications(items);
-        } catch (_) {}
-        // Also refresh accounts from backend to confirm state
-        try {
-          const users = await userService.getUsers();
-          setAccounts(users);
-        } catch (_) {}
+        } catch (_) { }
       }
-      setIsDeleteModalOpen(false);
-      setAccountToDelete(null);
       setError("");
     } catch (e) {
       console.error("Delete user failed:", e);
       const message = e?.response?.data?.message || "Failed to delete account.";
       setError(message);
+      // Refresh accounts on error to restore state
+      try {
+        const users = await userService.getUsers();
+        setAccounts(users);
+      } catch (_) { }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -227,15 +246,15 @@ function SuperAdminDashboard({ onLogout }) {
   };
 
   const filteredAccounts = accounts.filter((acc) => {
-  const term = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase();
 
-  return (
-    acc.name?.toLowerCase().includes(term) ||
-    acc.email?.toLowerCase().includes(term) ||
-    acc.role?.toLowerCase().includes(term) ||
-    acc.status?.toLowerCase().includes(term)
-  );
-});
+    return (
+      acc.name?.toLowerCase().includes(term) ||
+      acc.email?.toLowerCase().includes(term) ||
+      acc.role?.toLowerCase().includes(term) ||
+      acc.status?.toLowerCase().includes(term)
+    );
+  });
 
 
 
@@ -278,12 +297,12 @@ function SuperAdminDashboard({ onLogout }) {
                   <span style={{ fontWeight: 600 }}>Notifications</span>
                   <button
                     onClick={async () => {
-                      try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items);} catch {}
+                      try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { }
                     }}
                     style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
                   >Mark all read</button>
                   <button
-                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                     style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
                   >Delete all</button>
                 </div>
@@ -300,12 +319,12 @@ function SuperAdminDashboard({ onLogout }) {
                       <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
                       {!n.is_read && (
                         <button
-                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                           style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
                         >Mark read</button>
                       )}
                       <button
-                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                         style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
                         aria-label="Delete notification"
                         title="Delete notification"
@@ -340,18 +359,18 @@ function SuperAdminDashboard({ onLogout }) {
       {/* TITLE */}
       <div className="page-title">
         <h2>Account Management</h2>
-          <div className="page-actions">
-            <div className="search-wrapper">
-              <FaSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search accounts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
+        <div className="page-actions">
+          <div className="search-wrapper">
+            <FaSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search accounts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
           </div>
+        </div>
 
         <button
           className="create-account-btn"
