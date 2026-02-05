@@ -30,6 +30,7 @@ class AccountDeletedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: 'onboarding@resend.dev',
             subject: 'Your Account Has Been Deleted',
         );
     }
