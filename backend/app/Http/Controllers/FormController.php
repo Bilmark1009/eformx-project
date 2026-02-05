@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Form;
 use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -38,6 +39,18 @@ class FormController extends Controller
         $user = Auth::user();
         $form = $user->forms()->create($validated);
         $form->load('responses'); // Eager load responses for consistency
+
+        // Notify owner about new form creation
+        try {
+            Notification::create([
+                'title' => 'New form created',
+                'message' => 'Form "'.$form->title.'" was created.',
+                'type' => 'success',
+                'recipient_user_id' => $user->id,
+            ]);
+        } catch (\Throwable $e) {
+            // swallow notification errors
+        }
 
         return response()->json($form, 201);
     }
@@ -85,6 +98,8 @@ class FormController extends Controller
         $user = Auth::user();
         $form = $user->forms()->findOrFail($id);
 
+        $previousStatus = $form->status;
+
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
@@ -94,6 +109,20 @@ class FormController extends Controller
 
         $form->update($validated);
         $form->load('responses'); // Refresh and eager load
+
+        // Notify owner if form becomes inactive/closed
+        if (array_key_exists('status', $validated) && $validated['status'] !== 'active' && $validated['status'] !== $previousStatus) {
+            try {
+                Notification::create([
+                    'title' => 'Form status changed',
+                    'message' => 'Form "'.$form->title.'" is now '.$validated['status'].'.',
+                    'type' => 'warning',
+                    'recipient_user_id' => $user->id,
+                ]);
+            } catch (\Throwable $e) {
+                // swallow notification errors
+            }
+        }
 
         return response()->json($form);
     }

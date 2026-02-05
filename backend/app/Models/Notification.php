@@ -14,5 +14,6 @@ class Notification extends Model
         'type',
         'is_read',
         'recipient_admin_id',
+        'recipient_user_id',
     ];
 }

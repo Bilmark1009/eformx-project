@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Notification;
 use App\Models\SuperAdmin;
+use App\Models\User;
 
 class NotificationController extends Controller
 {
@@ -13,15 +14,15 @@ class NotificationController extends Controller
      */
     public function index(Request $request)
     {
-        if (!($request->user() instanceof SuperAdmin)) {
+        $user = $request->user();
+        if (!($user instanceof SuperAdmin) && !($user instanceof User)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $adminId = $request->user()->id;
-        $items = Notification::where(function($q) use ($adminId) {
-            $q->whereNull('recipient_admin_id')
-              ->orWhere('recipient_admin_id', $adminId);
-        })->latest()->limit(50)->get();
+        $items = $this->scopeForRecipient(Notification::query(), $user)
+            ->latest()
+            ->limit(50)
+            ->get();
 
         return response()->json($items);
     }
@@ -31,16 +32,12 @@ class NotificationController extends Controller
      */
     public function markRead(Request $request, $id)
     {
-        if (!($request->user() instanceof SuperAdmin)) {
+        $user = $request->user();
+        if (!($user instanceof SuperAdmin) && !($user instanceof User)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $adminId = $request->user()->id;
-        $notif = Notification::where('id', $id)
-            ->where(function($q) use ($adminId) {
-                $q->whereNull('recipient_admin_id')
-                  ->orWhere('recipient_admin_id', $adminId);
-            })->firstOrFail();
+        $notif = $this->scopeForRecipient(Notification::where('id', $id), $user)->firstOrFail();
 
         $notif->is_read = true;
         $notif->save();
@@ -53,15 +50,12 @@ class NotificationController extends Controller
      */
     public function markAllRead(Request $request)
     {
-        if (!($request->user() instanceof SuperAdmin)) {
+        $user = $request->user();
+        if (!($user instanceof SuperAdmin) && !($user instanceof User)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $adminId = $request->user()->id;
-        Notification::where(function($q) use ($adminId) {
-            $q->whereNull('recipient_admin_id')
-              ->orWhere('recipient_admin_id', $adminId);
-        })->update(['is_read' => true]);
+        $this->scopeForRecipient(Notification::query(), $user)->update(['is_read' => true]);
 
         return response()->json(['message' => 'All marked read']);
     }
@@ -71,16 +65,12 @@ class NotificationController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        if (!($request->user() instanceof SuperAdmin)) {
+        $user = $request->user();
+        if (!($user instanceof SuperAdmin) && !($user instanceof User)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $adminId = $request->user()->id;
-        $notif = Notification::where('id', $id)
-            ->where(function($q) use ($adminId) {
-                $q->whereNull('recipient_admin_id')
-                  ->orWhere('recipient_admin_id', $adminId);
-            })->firstOrFail();
+        $notif = $this->scopeForRecipient(Notification::where('id', $id), $user)->firstOrFail();
 
         $title = $notif->title;
         $notif->delete();
@@ -93,16 +83,29 @@ class NotificationController extends Controller
      */
     public function destroyAll(Request $request)
     {
-        if (!($request->user() instanceof SuperAdmin)) {
+        $user = $request->user();
+        if (!($user instanceof SuperAdmin) && !($user instanceof User)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $adminId = $request->user()->id;
-        Notification::where(function($q) use ($adminId) {
-            $q->whereNull('recipient_admin_id')
-              ->orWhere('recipient_admin_id', $adminId);
-        })->delete();
+        $this->scopeForRecipient(Notification::query(), $user)->delete();
 
         return response()->json(['message' => 'All deleted']);
+    }
+
+    /**
+     * Restrict notifications to the authenticated recipient.
+     */
+    private function scopeForRecipient($query, $user)
+    {
+        if ($user instanceof SuperAdmin) {
+            return $query->where('recipient_admin_id', $user->id);
+        }
+
+        if ($user instanceof User) {
+            return $query->where('recipient_user_id', $user->id);
+        }
+
+        return $query->whereRaw('1=0');
     }
 }
