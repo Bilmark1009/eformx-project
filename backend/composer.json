@@ -14,8 +14,8 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "phpoffice/phpspreadsheet": "^5.4",
-        "symfony/http-client": "^8.0",
-        "symfony/sendinblue-mailer": "^6.4"
+        "symfony/http-client": "*",
+        "symfony/sendinblue-mailer": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -86,6 +86,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.4.0"
         }
     },
     "minimum-stability": "stable",
