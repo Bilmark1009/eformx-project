@@ -20,6 +20,7 @@ Route::get('/test-mail', function () {
     try {
         \Illuminate\Support\Facades\Mail::raw('Test connection from EFormX', function ($message) {
             $message->to('eformxdetails@gmail.com')
+                ->from('onboarding@resend.dev', 'EFormX')
                 ->subject('SMTP Diagnostic Test');
         });
         return response()->json(['message' => 'Email sent successfully! Your configuration is correct.']);

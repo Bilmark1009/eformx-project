@@ -32,6 +32,7 @@ class FormSubmissionReceiptMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: 'onboarding@resend.dev',
             subject: 'Submission Receipt: ' . $this->form->title,
         );
     }
