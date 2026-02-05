@@ -33,7 +33,6 @@ class AccountCreatedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            from: 'eformxdetails@gmail.com',
             subject: 'Your Admin Account Has Been Created',
         );
     }

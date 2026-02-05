@@ -30,7 +30,6 @@ class AccountDeletedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            from: 'eformxdetails@gmail.com',
             subject: 'Your Account Has Been Deleted',
         );
     }
