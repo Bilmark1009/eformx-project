@@ -20,15 +20,9 @@ function SuperAdminDashboard({ onLogout }) {
   const [accountToDelete, setAccountToDelete] = useState(null);
 
   const [accountToEdit, setAccountToEdit] = useState(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [profileMessage, setProfileMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const navigate = useNavigate();
 
