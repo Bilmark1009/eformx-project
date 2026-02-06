@@ -45,6 +45,7 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
+            'encryption' => env('MAIL_ENCRYPTION', 'tls'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
@@ -73,6 +74,33 @@ return [
         'log' => [
             'transport' => 'log',
             'channel' => env('MAIL_LOG_CHANNEL'),
+        ],
+
+        // Mailtrap HTTP API mailer (preferred when SMTP is blocked)
+        'mailtrap' => [
+            // Target the Mailtrap Sending environment (not Sandbox) by
+            // defaulting the host segment to "send" in the DSN.
+            'transport' => 'mailtrap',
+            'url' => env('MAILTRAP_API_URL', 'mailtrap+api://' . env('MAILTRAP_API_TOKEN') . '@send?category=transactional'),
+            'token' => env('MAILTRAP_API_TOKEN'),
+        ],
+
+        // Mailtrap SMTP mailer (use only if your host allows outbound SMTP)
+        'mailtrap_smtp' => [
+            'transport' => 'smtp',
+            'host' => env('MAILTRAP_HOST', 'send.smtp.mailtrap.io'),
+            'port' => env('MAILTRAP_PORT', 587),
+            'username' => env('MAILTRAP_USERNAME'),
+            'password' => env('MAILTRAP_PASSWORD'),
+            'encryption' => env('MAILTRAP_ENCRYPTION', 'tls'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        // Brevo HTTP API mailer (kept as fallback)
+        'brevo' => [
+            'transport' => 'smtp',
+            'url' => 'brevo+api://' . env('BREVO_API_KEY') . '@default',
         ],
 
         'array' => [
@@ -111,8 +139,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
+        'address' => env('MAIL_FROM_ADDRESS', 'eformxdetails@gmail.com'),
+        'name' => env('MAIL_FROM_NAME', 'EFormX'),
     ],
 
 ];

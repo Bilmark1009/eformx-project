@@ -49,7 +49,7 @@ class SuperAdminController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email:rfc,dns|unique:super_admins,email',
+            'email' => 'required|email|unique:super_admins,email',
             'password' => 'required|string|min:6',
         ]);
 
@@ -67,9 +67,9 @@ class SuperAdminController extends Controller
         try {
             Mail::to($admin->email)->send(new AccountCreatedMail($admin->name, $admin->email, $rawPassword));
         } catch (\Throwable $e) {
-            Log::error('Failed to send SuperAdmin AccountCreatedMail', [
+            Log::error('SuperAdmin AccountCreatedMail delivery failed', [
                 'email' => $admin->email,
-                'error' => $e->getMessage(),
+                'exception' => $e,
             ]);
             Notification::create([
                 'title' => 'Mail Delivery Warning',
@@ -110,7 +110,7 @@ class SuperAdminController extends Controller
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'email' => ['sometimes','required','email:rfc,dns','unique:super_admins,email,' . $admin->id],
+            'email' => ['sometimes', 'required', 'email', 'unique:super_admins,email,' . $admin->id],
             'password' => 'sometimes|nullable|string|min:6',
             'role' => 'nullable|string|max:50',
         ]);
@@ -144,8 +144,10 @@ class SuperAdminController extends Controller
         }
 
         // Regular update (stays Super Admin)
-        if (isset($validated['name'])) $admin->name = $validated['name'];
-        if (isset($validated['email'])) $admin->email = $validated['email'];
+        if (isset($validated['name']))
+            $admin->name = $validated['name'];
+        if (isset($validated['email']))
+            $admin->email = $validated['email'];
         if (isset($validated['password']) && !empty($validated['password'])) {
             $admin->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
         }
@@ -182,9 +184,9 @@ class SuperAdminController extends Controller
         try {
             Mail::to($email)->send(new AccountDeletedMail($name, $email));
         } catch (\Throwable $e) {
-            Log::error('Failed to send SuperAdmin AccountDeletedMail', [
+            Log::error('SuperAdmin AccountDeletedMail delivery failed', [
                 'email' => $email,
-                'error' => $e->getMessage(),
+                'exception' => $e,
             ]);
             Notification::create([
                 'title' => 'Mail Delivery Warning',

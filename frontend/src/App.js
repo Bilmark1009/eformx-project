@@ -7,6 +7,7 @@ import PublicFormPage from "./pages/PublicFormPage";
 import authService from "./services/authService";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
+import NotificationsPage from "./pages/NotificationsPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -52,6 +53,16 @@ function App() {
         {/* Password reset routes */}
         <Route path="/forgot" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route
+          path="/notifications"
+          element={
+            user ? (
+              <NotificationsPage />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
 
         {/* Auth Routes */}
         <Route

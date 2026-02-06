@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import CreateFormModal from "./Createformmodal";
 import logo from "../assets/eFormX.png";
 import headerLogo from "../assets/logoforheader.png";
 import formService from "../services/formService";
+import notificationsService from "../services/notificationsService";
+import authService from "../services/authService";
 import {
   FaBell,
   FaPlus,
@@ -43,12 +46,23 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
   const [selectedFormResponses, setSelectedFormResponses] = useState(null);
   const [responsesSearchTerm, setResponsesSearchTerm] = useState("");
+  const [activeResponseDetail, setActiveResponseDetail] = useState(null);
+
+  // Notifications
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const navigate = useNavigate();
+  const [responseCopyStatus, setResponseCopyStatus] = useState("");
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProfileEditMode, setIsProfileEditMode] = useState(false);
   const [adminName, setAdminName] = useState(userName || "Admin");
   const [adminEmail, setAdminEmail] = useState(userEmail || "admin@eformx.com");
-  const [adminAvatar, setAdminAvatar] = useState(defaultAdminAvatar);
+  const [adminAvatar, setAdminAvatar] = useState(() => {
+    const u = authService.getCurrentUser();
+    return (u && u.photo) ? u.photo : defaultAdminAvatar;
+  });
   const [tempAdminName, setTempAdminName] = useState(userName || "Admin");
   const [tempAdminEmail, setTempAdminEmail] = useState(userEmail || "admin@eformx.com");
   const [tempAdminAvatar, setTempAdminAvatar] = useState(defaultAdminAvatar);
@@ -79,6 +93,22 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
   useEffect(() => {
     fetchForms();
+  }, []);
+
+  // Load notifications on mount
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const items = await notificationsService.list();
+        setNotifications(items);
+      } catch (e) {
+        // ignore transient errors
+      }
+    };
+    loadNotifications();
+
+    const interval = setInterval(loadNotifications, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchForms = async () => {
@@ -220,8 +250,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
       const responses = await formService.getFormResponses(formId);
       console.log('Fetched responses:', responses);
       const selected = forms.find((f) => String(f.id) === String(formId));
+      const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
       setSelectedFormResponses({
         ...(selected || {}),
+        fields: Array.isArray(formFields) ? formFields : [],
         responses: Array.isArray(responses) ? responses : []
       });
       setIsResponsesOpen(true);
@@ -230,35 +262,83 @@ function Dashboard({ onLogout, userEmail, userName }) {
       alert("Could not load responses.");
     }
   };
-
-  // ===== EXPORT CSV =====
-  const handleExportCSV = () => {
-    if (!selectedFormResponses) return;
-
-    const headers = [
-      "Submission Date",
-      "Respondent Name",
-      "Respondent Email",
-      "Responses Summary",
-    ];
-    const rows = selectedFormResponses.responses.map((r) => [
-      new Date(r.created_at).toLocaleDateString(),
-      r.respondent_name || "Anonymous",
-      r.respondent_email || "N/A",
-      JSON.stringify(r.responses || {}).substring(0, 100),
-    ]);
-
-    let csvContent = headers.join(",") + "\n";
-    rows.forEach((row) => {
-      csvContent += row.map((cell) => `"${cell}"`).join(",") + "\n";
-    });
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
+  const downloadBlob = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${selectedFormResponses.title}_responses.csv`;
+    link.download = filename;
     link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // ===== EXPORT CSV (RESPONDENT LEVEL) =====
+  const handleExportResponsesCSV = async () => {
+    if (!selectedFormResponses) return;
+    try {
+      const fieldOrder = (selectedFormResponses.fields || []).map((field, idx) => ({
+        id: field?.id ?? field?.name ?? `q${idx + 1}`,
+        label: field?.label || field?.title || field?.question || field?.name || `Question ${idx + 1}`,
+      }));
+
+      const headers = [
+        "Submission Date",
+        "Respondent Name",
+        "Respondent Email",
+        ...fieldOrder.map((f) => f.label),
+      ];
+
+      const rows = (selectedFormResponses.responses || []).map((r) => {
+        const entries = normalizeAnswerEntries(r.responses);
+        return [
+          r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
+          r.respondent_name || "Anonymous",
+          r.respondent_email || "N/A",
+          ...fieldOrder.map((f) => {
+            const match = entries.find((e) => String(e.id) === String(f.id));
+            return formatAnswerValue(match ? match.value : "");
+          }),
+        ];
+      });
+
+      let csvContent = headers.join(",") + "\n";
+      rows.forEach((row) => {
+        csvContent += row
+          .map((cell) => {
+            const safe = cell === undefined || cell === null ? "" : String(cell).replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(",") + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      downloadBlob(blob, `${selectedFormResponses.title || "form"}_responses.csv`);
+    } catch (err) {
+      console.error("Failed to export responses CSV", err);
+      alert("Could not export CSV. Please try again.");
+    }
+  };
+
+  // ===== EXPORTS (ANALYTICS ONLY) =====
+  const handleExportAnalyticsCSV = async () => {
+    if (!selectedFormAnalytics?.id) return;
+    try {
+      const res = await formService.exportAnalyticsCsv(selectedFormAnalytics.id);
+      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.csv`);
+    } catch (err) {
+      console.error("Failed to export analytics CSV", err);
+      alert("Could not export analytics CSV. Please try again.");
+    }
+  };
+
+  const handleExportAnalyticsXLSX = async () => {
+    if (!selectedFormAnalytics?.id) return;
+    try {
+      const res = await formService.exportAnalyticsXlsx(selectedFormAnalytics.id);
+      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.xlsx`);
+    } catch (err) {
+      console.error("Failed to export analytics XLSX", err);
+      alert("Could not export analytics XLSX. Please try again.");
+    }
   };
 
   // ===== PROFILE MANAGEMENT =====
@@ -298,7 +378,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
     (async () => {
       try {
-        const authService = (await import("../services/authService")).default;
 
         // If user entered a new password, validate it here (no separate save button)
         const hasPasswordChange = !!newPassword || !!confirmNewPassword;
@@ -317,6 +396,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         const updated = await authService.updateProfile({
           name: trimmedName,
           email: trimmedEmail,
+          photo: tempAdminAvatar,
         });
 
         // If requested, persist password change
@@ -333,7 +413,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         // Update local UI state
         setAdminName(updated.name || trimmedName);
         setAdminEmail(updated.email || trimmedEmail);
-        setAdminAvatar(tempAdminAvatar || defaultAdminAvatar);
+        setAdminAvatar(updated.photo || tempAdminAvatar || defaultAdminAvatar);
         setIsProfileEditMode(false);
 
         // Show success notification
@@ -351,7 +431,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         try {
           const storedStr = localStorage.getItem('user');
           const stored = storedStr ? JSON.parse(storedStr) : {};
-          const next = { ...stored, name: updated.name, email: updated.email };
+          const next = { ...stored, name: updated.name, email: updated.email, photo: updated.photo };
           localStorage.setItem('user', JSON.stringify(next));
         } catch { }
       } catch (err) {
@@ -400,6 +480,124 @@ function Dashboard({ onLogout, userEmail, userName }) {
     }
   };
 
+  const mapFieldLabels = (fields = []) => {
+    const map = {};
+    fields.forEach((field, idx) => {
+      const key = field?.id ?? field?.name ?? `q${idx + 1}`;
+      const label = field?.label || field?.title || field?.question || field?.name || `Question ${idx + 1}`;
+      if (key) {
+        map[String(key)] = label;
+      }
+    });
+    return map;
+  };
+
+  const responseFieldLabelMap = useMemo(
+    () => mapFieldLabels(selectedFormResponses?.fields || []),
+    [selectedFormResponses]
+  );
+
+  const normalizeAnswerEntries = (responses) => {
+    if (!responses) return [];
+    if (typeof responses === "string") {
+      try {
+        const parsed = JSON.parse(responses);
+        return normalizeAnswerEntries(parsed);
+      } catch (err) {
+        return [{ id: "answer", value: responses }];
+      }
+    }
+    if (Array.isArray(responses)) {
+      return responses.map((entry, idx) => {
+        if (entry && typeof entry === "object") {
+          return {
+            id: entry.id ?? entry.name ?? entry.fieldId ?? `q${idx + 1}`,
+            value: entry.value ?? entry.answer ?? entry.response ?? entry,
+            label: entry.label || entry.question || entry.title || entry.name,
+          };
+        }
+        return { id: `q${idx + 1}`, value: entry };
+      });
+    }
+    if (typeof responses === "object") {
+      return Object.entries(responses).map(([id, value]) => ({ id, value }));
+    }
+    return [];
+  };
+
+  const formatAnswerValue = (value, maxLength) => {
+    let text;
+    if (Array.isArray(value)) {
+      text = value.join(", ");
+    } else if (value && typeof value === "object") {
+      const flatValues = Object.values(value).filter((v) => typeof v !== "object");
+      text = flatValues.length ? flatValues.join(", ") : JSON.stringify(value);
+    } else {
+      text = value === undefined || value === null ? "" : String(value);
+    }
+
+    if (maxLength && text.length > maxLength) {
+      return text.slice(0, maxLength) + "...";
+    }
+    return text;
+  };
+
+  const summarizeResponses = (response) => {
+    const entries = normalizeAnswerEntries(response?.responses);
+    if (!entries.length) return "No answers";
+    const preview = entries.slice(0, 2).map((entry, idx) => {
+      const label = responseFieldLabelMap[entry.id] || entry.label || `Q${idx + 1}`;
+      return `${label}: ${formatAnswerValue(entry.value, 40)}`;
+    });
+    if (entries.length > 2) {
+      preview.push(`(+${entries.length - 2} more)`);
+    }
+    return preview.join(", ");
+  };
+
+  const buildFullSummary = (response) => {
+    const entries = normalizeAnswerEntries(response?.responses);
+    if (!entries.length) return "";
+    return entries
+      .map((entry, idx) => {
+        const label = responseFieldLabelMap[entry.id] || entry.label || `Q${idx + 1}`;
+        return `${label}: ${formatAnswerValue(entry.value)}`;
+      })
+      .join(" | ");
+  };
+
+  const buildResponseDetailText = (response) => {
+    if (!response) return "";
+    const entries = normalizeAnswerEntries(response.responses);
+    const meta = [
+      `Date: ${response.created_at ? new Date(response.created_at).toLocaleString() : "-"}`,
+      `Name: ${response.respondent_name || "Anonymous"}`,
+      `Email: ${response.respondent_email || "N/A"}`,
+    ];
+
+    const qa = entries.map((entry, idx) => {
+      const label = responseFieldLabelMap[entry.id] || entry.label || `Question ${idx + 1}`;
+      const answer = formatAnswerValue(entry.value);
+      return `Question: ${label}\nAnswer: ${answer}`;
+    });
+
+    return [...meta, "", ...qa].join("\n");
+  };
+
+  const handleCopyResponseDetail = async () => {
+    if (!activeResponseDetail) return;
+    const text = buildResponseDetailText(activeResponseDetail);
+    try {
+      await navigator.clipboard.writeText(text);
+      setResponseCopyStatus("Copied");
+      setTimeout(() => setResponseCopyStatus(""), 2000);
+    } catch (err) {
+      console.error("Failed to copy response detail", err);
+      setResponseCopyStatus("Copy failed");
+      setTimeout(() => setResponseCopyStatus(""), 2000);
+    }
+  };
+
   const filteredResponses =
     selectedFormResponses && Array.isArray(selectedFormResponses.responses)
       ? selectedFormResponses.responses.filter((response) => {
@@ -407,7 +605,8 @@ function Dashboard({ onLogout, userEmail, userName }) {
         if (!term) return true;
         const name = (response.respondent_name || "").toLowerCase();
         const email = (response.respondent_email || "").toLowerCase();
-        return name.includes(term) || email.includes(term);
+        const summary = summarizeResponses(response).toLowerCase();
+        return name.includes(term) || email.includes(term) || summary.includes(term);
       })
       : [];
 
@@ -419,7 +618,74 @@ function Dashboard({ onLogout, userEmail, userName }) {
           <img src={headerLogo} alt="eFormX" className="header-logo" />
         </div>
         <div className="header-right">
-          <FaBell className="icon-bell" />
+          <div style={{ position: "relative", marginRight: 16 }}>
+            <FaBell className="icon-bell" onClick={() => setShowNotifications(v => !v)} style={{ cursor: "pointer" }} />
+            {unreadCount > 0 && (
+              <span style={{
+                position: "absolute",
+                top: -6,
+                right: -6,
+                background: "#ef4444",
+                color: "#fff",
+                borderRadius: "9999px",
+                fontSize: 12,
+                padding: "2px 6px"
+              }}>{unreadCount}</span>
+            )}
+            {showNotifications && (
+              <div style={{
+                position: "absolute",
+                right: 0,
+                top: 28,
+                width: 280,
+                background: "#fff",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                borderRadius: 8,
+                overflow: "hidden",
+                zIndex: 20
+              }}>
+                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 600 }}>Notifications</span>
+                  <button
+                    onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                    style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
+                  >Mark all read</button>
+                  <button
+                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
+                  >Delete all</button>
+                </div>
+                <button
+                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
+                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
+                >View all</button>
+                <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
+                  ) : notifications.map(n => (
+                    <div key={n.id} style={{ padding: 12, borderBottom: "1px solid #f3f4f6", background: n.is_read ? "#fff" : "#f9fafb" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
+                      <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
+                      {!n.is_read && (
+                        <button
+                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                          style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
+                        >Mark read</button>
+                      )}
+                      <button
+                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                        style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
+                        aria-label="Delete notification"
+                        title="Delete notification"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div
             className="admin-profile clickable-profile"
             onClick={handleOpenProfile}
@@ -559,17 +825,44 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
       {/* SHARE MODAL */}
       {isShareModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={closeShareModal}>
+          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-icon" onClick={closeShareModal} aria-label="Close">
+              ✕
+            </button>
             <h2>Share Form</h2>
             <p>Copy the link below to share this form:</p>
-            <input
-              type="text"
-              value={shareLink}
-              readOnly
-              onFocus={(e) => e.target.select()}
-            />
-            <button onClick={closeShareModal}>Close</button>
+            <div className="share-link-container">
+              <input
+                type="text"
+                value={shareLink}
+                readOnly
+                onFocus={(e) => e.target.select()}
+                className="share-link-input"
+              />
+              <button
+                className="copy-link-btn"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareLink);
+                    // Show success feedback
+                    const btn = document.querySelector('.copy-link-btn');
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓ Copied!';
+                    btn.style.background = '#10b981';
+                    setTimeout(() => {
+                      btn.textContent = originalText;
+                      btn.style.background = '';
+                    }, 2000);
+                  } catch (err) {
+                    console.error('Failed to copy:', err);
+                    alert('Failed to copy link. Please copy manually.');
+                  }
+                }}
+              >
+                Copy Link
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -634,13 +927,18 @@ function Dashboard({ onLogout, userEmail, userName }) {
             <div className="analytics-stats-footer">
               <button
                 className="export-csv-btn"
-                onClick={() => {
-                  setSelectedFormResponses(selectedFormAnalytics);
-                  handleExportCSV();
-                }}
+                onClick={handleExportAnalyticsCSV}
               >
                 <FaDownload style={{ marginRight: "8px" }} />
                 Export CSV
+              </button>
+              <button
+                className="export-csv-btn"
+                onClick={handleExportAnalyticsXLSX}
+                style={{ marginLeft: 12 }}
+              >
+                <FaDownload style={{ marginRight: "8px" }} />
+                Export XLSX
               </button>
             </div>
 
@@ -670,6 +968,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
                   setIsResponsesOpen(false);
                   setSelectedFormResponses(null);
                   setResponsesSearchTerm("");
+                  setActiveResponseDetail(null);
                 }}
               >
                 ✕
@@ -689,17 +988,18 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 <tbody>
                   {filteredResponses && filteredResponses.length > 0 ? (
                     filteredResponses.map((response, index) => {
-                      const responsesStr = JSON.stringify(response.responses || {});
+                      const summaryText = summarizeResponses(response);
+                      const fullSummary = buildFullSummary(response);
                       return (
                         <tr key={index}>
                           <td>{new Date(response.created_at).toLocaleDateString()}</td>
                           <td>{response.respondent_name || "Anonymous"}</td>
                           <td>{response.respondent_email || "N/A"}</td>
-                          <td title={responsesStr}>
-                            {responsesStr.substring(0, 50)}{responsesStr.length > 50 ? "..." : ""}
+                          <td title={fullSummary || undefined}>
+                            {summaryText}
                           </td>
                           <td>
-                            <button className="view-btn">View Detail</button>
+                            <button className="view-btn" onClick={() => setActiveResponseDetail(response)}>View Detail</button>
                           </td>
                         </tr>
                       );
@@ -715,9 +1015,56 @@ function Dashboard({ onLogout, userEmail, userName }) {
               </table>
             </div>
             <div className="responses-footer">
-              <button className="export-csv-btn" onClick={handleExportCSV}>
+              <button className="export-csv-btn" onClick={() => handleExportResponsesCSV()}>
                 Export CSV
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESPONSE DETAIL MODAL */}
+      {activeResponseDetail && (
+        <div className="modal-overlay" onClick={() => setActiveResponseDetail(null)}>
+          <div className="response-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="responses-header response-detail-header">
+              <h3>Response Detail</h3>
+              <div className="response-detail-actions">
+                {responseCopyStatus && <span className="copy-status">{responseCopyStatus}</span>}
+                <button className="copy-all-btn" onClick={handleCopyResponseDetail}>Copy all</button>
+                <button className="close-responses-btn" onClick={() => setActiveResponseDetail(null)}>✕</button>
+              </div>
+            </div>
+            <div className="response-detail-meta">
+              <div className="response-meta-item">
+                <div className="response-meta-label">Date</div>
+                <div className="response-meta-value">{activeResponseDetail.created_at ? new Date(activeResponseDetail.created_at).toLocaleString() : "-"}</div>
+              </div>
+              <div className="response-meta-item">
+                <div className="response-meta-label">Name</div>
+                <div className="response-meta-value">{activeResponseDetail.respondent_name || "Anonymous"}</div>
+              </div>
+              <div className="response-meta-item">
+                <div className="response-meta-label">Email</div>
+                <div className="response-meta-value">{activeResponseDetail.respondent_email || "N/A"}</div>
+              </div>
+            </div>
+            <div className="response-detail-list">
+              {normalizeAnswerEntries(activeResponseDetail.responses).length === 0 ? (
+                <div className="response-detail-empty">No answers provided.</div>
+              ) : (
+                normalizeAnswerEntries(activeResponseDetail.responses).map((entry, idx) => {
+                  const label = responseFieldLabelMap[entry.id] || entry.label || `Question ${idx + 1}`;
+                  return (
+                    <div className="response-detail-row" key={`${entry.id || idx}-${idx}`}>
+                      <div className="response-question">Question</div>
+                      <div className="response-question-text">{label}</div>
+                      <div className="response-answer-label">Answer</div>
+                      <div className="response-answer">{formatAnswerValue(entry.value)}</div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

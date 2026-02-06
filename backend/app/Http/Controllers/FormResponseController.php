@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Form;
 use App\Models\FormResponse;
 use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -89,6 +90,21 @@ class FormResponseController extends Controller
                 'form_id' => $form->id,
                 'error' => $e->getMessage()
             ]);
+        }
+
+        // 3. Milestone notification every 5 responses
+        try {
+            $count = $form->responses()->count();
+            if ($count > 0 && $count % 5 === 0 && $form->user) {
+                Notification::create([
+                    'title' => 'Response milestone reached',
+                    'message' => 'Form "'.$form->title.'" reached '.$count.' responses.',
+                    'type' => 'info',
+                    'recipient_user_id' => $form->user->id,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // swallow notification errors
         }
 
         return response()->json([

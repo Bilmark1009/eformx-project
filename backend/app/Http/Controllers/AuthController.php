@@ -33,6 +33,7 @@ class AuthController extends Controller
                     'name' => $admin->name,
                     'email' => $admin->email,
                     'role' => 'Super Admin',
+                    'photo' => $this->resolvePhotoUrl($admin->avatar_url ?? null),
                     'token' => $token,
                 ]);
             }
@@ -58,6 +59,7 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => 'User',
+                    'photo' => $this->resolvePhotoUrl($user->avatar_url ?? null),
                     'token' => $token,
                 ]);
             }
@@ -91,7 +93,7 @@ class AuthController extends Controller
         // Find user (check both Users and SuperAdmins)
         $user = User::where('email', $email)->first();
         $admin = null;
-        
+
         if (!$user) {
             $admin = SuperAdmin::where('email', $email)->first();
         }
@@ -141,7 +143,7 @@ class AuthController extends Controller
         // Check both Users and SuperAdmins
         $user = User::where('email', $request->email)->first();
         $admin = null;
-        
+
         if (!$user) {
             $admin = SuperAdmin::where('email', $request->email)->first();
         }
@@ -170,7 +172,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Update the authenticated user's profile (name/email/password).
+     * Update the authenticated user's profile (name/email/password/photo).
      * Works for both SuperAdmin and regular User.
      */
     public function updateProfile(Request $request)
@@ -185,14 +187,16 @@ class AuthController extends Controller
         if ($authUser instanceof SuperAdmin) {
             $rules = [
                 'name' => 'sometimes|required|string|max:255',
-                'email' => ['sometimes','required','email:rfc,dns', Rule::unique('super_admins')->ignore($authUser->id)],
+                'email' => ['sometimes', 'required', 'email', Rule::unique('super_admins')->ignore($authUser->id)],
                 'password' => 'sometimes|nullable|string|min:6',
+                'photo' => 'sometimes|nullable|string', // base64 data URL or absolute URL
             ];
         } else { // regular User
             $rules = [
                 'name' => 'sometimes|required|string|max:255',
-                'email' => ['sometimes','required','email:rfc,dns', Rule::unique('users')->ignore($authUser->id)],
+                'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($authUser->id)],
                 'password' => 'sometimes|nullable|string|min:6',
+                'photo' => 'sometimes|nullable|string',
             ];
         }
 
@@ -209,6 +213,15 @@ class AuthController extends Controller
             $authUser->password = Hash::make($validated['password']);
         }
 
+        // Handle photo upload or URL
+        if (array_key_exists('photo', $validated) && !empty($validated['photo'])) {
+            $photoValue = $validated['photo'];
+            $storedPath = $this->storePhoto($photoValue, $authUser->id);
+            if ($storedPath) {
+                $authUser->avatar_url = $storedPath;
+            }
+        }
+
         $authUser->save();
 
         // Normalize response similar to login payload
@@ -217,6 +230,7 @@ class AuthController extends Controller
             'name' => $authUser->name,
             'email' => $authUser->email,
             'role' => $authUser instanceof SuperAdmin ? 'Super Admin' : 'User',
+            'photo' => $this->resolvePhotoUrl($authUser->avatar_url ?? null),
         ];
 
         return response()->json($payload);
@@ -251,4 +265,92 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Password updated successfully']);
     }
+
+    /**
+     * Store a base64 data URL image to public/avatars and return relative path.
+     * If input is already an absolute URL, return it unchanged.
+     */
+    private function storePhoto(string $photoValue, int $ownerId): ?string
+    {
+        // If it's an absolute URL, keep as-is
+        if (preg_match('/^https?:\/\//i', $photoValue)) {
+            return $photoValue;
+        }
+        // Expecting data URL: data:image/png;base64,...
+        if (!str_starts_with($photoValue, 'data:image')) {
+            return null;
+        }
+        $parts = explode(',', $photoValue, 2);
+        if (count($parts) !== 2) {
+            return null;
+        }
+        $meta = $parts[0];
+        $data = base64_decode($parts[1]);
+        if ($data === false) {
+            return null;
+        }
+        $ext = 'png';
+        if (preg_match('/data:image\/(\w+);base64/', $meta, $m)) {
+            $ext = strtolower($m[1]);
+        }
+        $filename = 'avatar_' . $ownerId . '_' . time() . '.' . $ext;
+        $dir = public_path('avatars');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $path = $dir . DIRECTORY_SEPARATOR . $filename;
+        file_put_contents($path, $data);
+        // Return relative path to public
+        return '/avatars/' . $filename;
+    }
+
+    /**
+     * Turn stored relative path or URL into absolute URL using APP_URL.
+     */
+    private function resolvePhotoUrl(?string $stored): ?string
+    {
+        if (!$stored) {
+            return null;
+        }
+
+        // If it's already an absolute URL, rewrite it when it points to a
+        // non-public dev host (localhost/backend.test), otherwise return as-is.
+        if (preg_match('/^https?:\/\//i', $stored)) {
+            $parts = parse_url($stored);
+            if ($parts && isset($parts['host']) && preg_match('/localhost|backend\.test/i', $parts['host'])) {
+                $base = config('app.url');
+                if (!$base || preg_match('/localhost|backend\.test/i', $base)) {
+                    $request = request();
+                    if ($request) {
+                        $base = $request->getSchemeAndHttpHost();
+                    }
+                }
+                if (!$base) {
+                    $base = env('APP_URL', 'http://localhost');
+                }
+                $base = rtrim($base, '/');
+                $path = ($parts['path'] ?? '') . (isset($parts['query']) ? '?' . $parts['query'] : '');
+                return $base . $path;
+            }
+
+            return $stored;
+        }
+
+        // Prefer configured APP_URL, but fall back to the current request host
+        $base = config('app.url');
+        if (!$base || preg_match('/localhost|backend\.test/i', $base)) {
+            $request = request();
+            if ($request) {
+                $base = $request->getSchemeAndHttpHost();
+            }
+        }
+
+        if (!$base) {
+            $base = env('APP_URL', 'http://localhost');
+        }
+
+        $base = rtrim($base, '/');
+        return $base . $stored;
+    }
+
 }
