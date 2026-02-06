@@ -273,17 +273,7 @@ function SuperAdminDashboard({ onLogout }) {
               }}>{unreadCount}</span>
             )}
             {showNotifications && (
-              <div style={{
-                position: "absolute",
-                right: 0,
-                top: 28,
-                width: 280,
-                background: "#fff",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                borderRadius: 8,
-                overflow: "hidden",
-                zIndex: 10
-              }}>
+              <div className="notification-dropdown">
                 <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontWeight: 600 }}>Notifications</span>
                   <button
@@ -301,7 +291,7 @@ function SuperAdminDashboard({ onLogout }) {
                   onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
                   style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
                 >View all</button>
-                <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                <div className="notification-list">
                   {notifications.length === 0 ? (
                     <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
                   ) : notifications.map(n => (
@@ -345,12 +335,12 @@ function SuperAdminDashboard({ onLogout }) {
           </div>
         </div>
 
-      </header>
+      </header >
 
       {/* TITLE */}
-      <div className="page-title">
+      < div className="page-title" >
         <h2>Account Management</h2>
-        <div className="page-actions">
+        <div className="toolbar-actions">
           <div className="search-wrapper">
             <FaSearch className="search-icon" />
             <input
@@ -361,21 +351,21 @@ function SuperAdminDashboard({ onLogout }) {
               className="search-input"
             />
           </div>
-        </div>
 
-        <button
-          className="create-account-btn"
-          onClick={() => {
-            setAccountToEdit(null);
-            setIsModalOpen(true);
-          }}
-        >
-          <FaPlus /> Create Account
-        </button>
-      </div>
+          <button
+            className="create-account-btn"
+            onClick={() => {
+              setAccountToEdit(null);
+              setIsModalOpen(true);
+            }}
+          >
+            <FaPlus /> Create <span className="hide-on-mobile">Account</span>
+          </button>
+        </div>
+      </div >
 
       {/* TABLE */}
-      <div className="table-card">
+      < div className="table-card" >
         {error && (
           <div style={{
             background: '#fee2e2',
@@ -386,7 +376,8 @@ function SuperAdminDashboard({ onLogout }) {
           }}>
             {error}
           </div>
-        )}
+        )
+        }
         <table>
           <thead>
             <tr>
@@ -440,10 +431,10 @@ function SuperAdminDashboard({ onLogout }) {
             )}
           </tbody>
         </table>
-      </div>
+      </div >
 
       {/* CREATE / EDIT ACCOUNT MODAL */}
-      <CreateAccountModal
+      < CreateAccountModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
@@ -455,149 +446,155 @@ function SuperAdminDashboard({ onLogout }) {
       />
 
       {/* PROFILE VIEW MODAL */}
-      {isProfileOpen && (
-        <div className="modal-overlay">
-          <div className="profile-modal-card">
-            <span
-              className="close-icon"
-              onClick={() => setIsProfileOpen(false)}
-            >
-              ✖
-            </span>
-
-            <div className="profile-picture">
-              <img src={superAdminProfile.photo} alt="Profile" />
-            </div>
-
-            <h3 className="profile-name">{superAdminProfile.name}</h3>
-
-            <div className="profile-actions">
-              <button
-                className="edit-profile-btn"
-                onClick={() => setIsEditProfileOpen(true)}
+      {
+        isProfileOpen && (
+          <div className="modal-overlay">
+            <div className="profile-modal-card">
+              <span
+                className="close-icon"
+                onClick={() => setIsProfileOpen(false)}
               >
-                <FaUserEdit className="btn-icon" />
-                Edit Profile
-              </button>
+                ✖
+              </span>
 
-              <button className="logout-btn" onClick={handleLogout}>
-                Log out
-              </button>
+              <div className="profile-picture">
+                <img src={superAdminProfile.photo} alt="Profile" />
+              </div>
+
+              <h3 className="profile-name">{superAdminProfile.name}</h3>
+
+              <div className="profile-actions">
+                <button
+                  className="edit-profile-btn"
+                  onClick={() => setIsEditProfileOpen(true)}
+                >
+                  <FaUserEdit className="btn-icon" />
+                  Edit Profile
+                </button>
+
+                <button className="logout-btn" onClick={handleLogout}>
+                  Log out
+                </button>
+              </div>
+
             </div>
-
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* EDIT PROFILE MODAL */}
-      {isEditProfileOpen && (
-        <div className="modal-overlay">
-          <div className="profile-modal-card">
-            <span
-              className="close-icon"
-              onClick={() => setIsEditProfileOpen(false)}
-            >
-              ✖
-            </span>
+      {
+        isEditProfileOpen && (
+          <div className="modal-overlay">
+            <div className="profile-modal-card">
+              <span
+                className="close-icon"
+                onClick={() => setIsEditProfileOpen(false)}
+              >
+                ✖
+              </span>
 
-            {profileMessage && (
-              <div className="success-banner" role="status" aria-live="polite">
-                {profileMessage}
+              {profileMessage && (
+                <div className="success-banner" role="status" aria-live="polite">
+                  {profileMessage}
+                </div>
+              )}
+
+              <h3 className="profile-name">Edit Profile</h3>
+
+              <div className="profile-picture">
+                <img src={superAdminProfile.photo} alt="Profile" />
+
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="profileFileInput"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setSuperAdminProfile({
+                        ...superAdminProfile,
+                        photo: reader.result,
+                      });
+                    };
+                    if (file) reader.readAsDataURL(file);
+                  }}
+                />
+
+                {/* Overlay + icon */}
+                <label htmlFor="profileFileInput" className="profile-upload-icon">
+                  <FaCamera />
+                </label>
+
               </div>
-            )}
 
-            <h3 className="profile-name">Edit Profile</h3>
 
-            <div className="profile-picture">
-              <img src={superAdminProfile.photo} alt="Profile" />
-
-              {/* Hidden file input */}
               <input
-                type="file"
-                accept="image/*"
-                id="profileFileInput"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setSuperAdminProfile({
-                      ...superAdminProfile,
-                      photo: reader.result,
-                    });
-                  };
-                  if (file) reader.readAsDataURL(file);
-                }}
+                type="text"
+                value={superAdminProfile.name}
+                onChange={(e) =>
+                  setSuperAdminProfile({
+                    ...superAdminProfile,
+                    name: e.target.value,
+                  })
+                }
+                placeholder="Full Name"
+                className="profile-input"
               />
 
-              {/* Overlay + icon */}
-              <label htmlFor="profileFileInput" className="profile-upload-icon">
-                <FaCamera />
-              </label>
+              <input
+                type="email"
+                value={superAdminProfile.email}
+                onChange={(e) =>
+                  setSuperAdminProfile({
+                    ...superAdminProfile,
+                    email: e.target.value,
+                  })
+                }
+                placeholder="Email"
+                className="profile-input"
+              />
 
+              <button className="save-btn" onClick={handleSaveProfile}>
+                Save Changes
+              </button>
             </div>
-
-
-            <input
-              type="text"
-              value={superAdminProfile.name}
-              onChange={(e) =>
-                setSuperAdminProfile({
-                  ...superAdminProfile,
-                  name: e.target.value,
-                })
-              }
-              placeholder="Full Name"
-              className="profile-input"
-            />
-
-            <input
-              type="email"
-              value={superAdminProfile.email}
-              onChange={(e) =>
-                setSuperAdminProfile({
-                  ...superAdminProfile,
-                  email: e.target.value,
-                })
-              }
-              placeholder="Email"
-              className="profile-input"
-            />
-
-            <button className="save-btn" onClick={handleSaveProfile}>
-              Save Changes
-            </button>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* DELETE CONFIRMATION MODAL */}
-      {isDeleteModalOpen && (
-        <div className="modal-overlay">
-          <div className="delete-modal-card">
-            <h3>Are you sure you want to delete this account?</h3>
+      {
+        isDeleteModalOpen && (
+          <div className="modal-overlay">
+            <div className="delete-modal-card">
+              <h3>Are you sure you want to delete this account?</h3>
 
-            <div className="delete-actions">
-              <button
-                className="cancel-btn"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Cancel
-              </button>
+              <div className="delete-actions">
+                <button
+                  className="cancel-btn"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                >
+                  Cancel
+                </button>
 
-              <button
-                className="confirm-delete-btn"
-                onClick={confirmDelete}
-              >
-                Delete
-              </button>
+                <button
+                  className="confirm-delete-btn"
+                  onClick={confirmDelete}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
 
-    </div>
+    </div >
   );
 }
 
