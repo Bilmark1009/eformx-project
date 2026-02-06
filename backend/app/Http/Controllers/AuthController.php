@@ -309,12 +309,29 @@ class AuthController extends Controller
      */
     private function resolvePhotoUrl(?string $stored): ?string
     {
-        if (!$stored)
+        if (!$stored) {
             return null;
+        }
+
+        // If it's already an absolute URL, return as-is
         if (preg_match('/^https?:\/\//i', $stored)) {
             return $stored;
         }
-        $base = rtrim(config('app.url', env('APP_URL', 'http://localhost')), '/');
+
+        // Prefer configured APP_URL, but fall back to the current request host
+        $base = config('app.url');
+        if (!$base || preg_match('/localhost|backend\.test/i', $base)) {
+            $request = request();
+            if ($request) {
+                $base = $request->getSchemeAndHttpHost();
+            }
+        }
+
+        if (!$base) {
+            $base = env('APP_URL', 'http://localhost');
+        }
+
+        $base = rtrim($base, '/');
         return $base . $stored;
     }
 
