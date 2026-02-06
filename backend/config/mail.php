@@ -76,8 +76,30 @@ return [
             'channel' => env('MAIL_LOG_CHANNEL'),
         ],
 
-        'sendinblue' => [
-            'transport' => 'sendinblue',
+        // Mailtrap HTTP API mailer (preferred when SMTP is blocked)
+        'mailtrap' => [
+            // The Mailtrap transport is resolved from the DSN built below.
+            'transport' => 'mailtrap',
+            'url' => env('MAILTRAP_API_URL', 'mailtrap+api://' . env('MAILTRAP_API_TOKEN') . '@default'),
+            'token' => env('MAILTRAP_API_TOKEN'),
+        ],
+
+        // Mailtrap SMTP mailer (use only if your host allows outbound SMTP)
+        'mailtrap_smtp' => [
+            'transport' => 'smtp',
+            'host' => env('MAILTRAP_HOST', 'send.smtp.mailtrap.io'),
+            'port' => env('MAILTRAP_PORT', 587),
+            'username' => env('MAILTRAP_USERNAME'),
+            'password' => env('MAILTRAP_PASSWORD'),
+            'encryption' => env('MAILTRAP_ENCRYPTION', 'tls'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        // Brevo HTTP API mailer (kept as fallback)
+        'brevo' => [
+            'transport' => 'smtp',
+            'url' => 'brevo+api://' . env('BREVO_API_KEY') . '@default',
         ],
 
         'array' => [

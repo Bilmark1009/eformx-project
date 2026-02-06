@@ -14,8 +14,9 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "phpoffice/phpspreadsheet": "^5.4",
+        "symfony/brevo-mailer": "*",
         "symfony/http-client": "*",
-        "symfony/brevo-mailer": "*"
+        "symfony/mailtrap-mailer": "^8.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
