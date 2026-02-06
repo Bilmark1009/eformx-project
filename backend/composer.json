@@ -15,7 +15,7 @@
         "laravel/tinker": "^2.10.1",
         "phpoffice/phpspreadsheet": "^5.4",
         "symfony/http-client": "*",
-        "symfony/sendinblue-mailer": "*"
+        "symfony/brevo-mailer": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
