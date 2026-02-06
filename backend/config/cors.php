@@ -10,7 +10,8 @@ return [
         'https://e-formx.netlify.app',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
-        'http://backend.test'
+        'http://backend.test',
+        'http://127.0.0.1:8000'
     ],
 
     // Patterns for dynamic origins like Netlify Deploy Previews

@@ -168,16 +168,17 @@ tbody tr:hover {
     font-size: 18px;
   }
 
-  .page-actions {
+  .toolbar-actions {
     width: 100%;
-    /* Make it full width */
-    margin-left: 0;
-    /* Remove auto margin */
-    margin-right: 0;
+    margin: 0;
+    flex-direction: row;
+    /* Ensure row layout */
   }
 
   .search-wrapper {
-    width: 100%;
+    flex: 1;
+    /* Search bar takes available space */
+    width: auto;
   }
 
   .search-input {
@@ -185,8 +186,14 @@ tbody tr:hover {
   }
 
   .create-account-btn {
-    width: 100%;
+    width: auto;
+    /* Allow button to shrink to content */
+    padding: 10px 14px;
     justify-content: center;
+  }
+
+  .hide-on-mobile {
+    display: none;
   }
 
   .table-card {
@@ -228,6 +235,22 @@ tbody tr:hover {
     width: 90%;
     max-width: 90%;
     padding: 20px;
+  }
+
+  /* Mobile Notification Dropdown Fix */
+  .notification-dropdown {
+    position: fixed;
+    /* Break out of relative container */
+    top: 70px;
+    /* Below header approx */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 350px;
+    right: auto;
+    /* Reset right positioning */
+    border: 1px solid #eee;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   }
 }
 
@@ -624,12 +647,11 @@ tbody tr:hover {
   border-radius: 5px;
 }
 
-.page-actions {
+.toolbar-actions {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-left: auto;
-  margin-right: 50px;
 }
 
 .search-input {
@@ -675,4 +697,23 @@ tbody tr:hover {
 .search-input:focus {
   border-color: #0f4c5c;
   box-shadow: 0 0 0 2px rgba(15, 76, 92, 0.15);
+}
+
+/* Notification Dropdown (Desktop Default) */
+.notification-dropdown {
+  position: absolute;
+  right: 0;
+  top: 28px;
+  width: 280px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 1001;
+  /* Ensure above other content */
+}
+
+.notification-list {
+  max-height: 260px;
+  overflow-y: auto;
 }
