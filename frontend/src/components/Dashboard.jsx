@@ -647,11 +647,11 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontWeight: 600 }}>Notifications</span>
                   <button
-                    onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                    onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                     style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
                   >Mark all read</button>
                   <button
-                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                     style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
                   >Delete all</button>
                 </div>
@@ -668,12 +668,12 @@ function Dashboard({ onLogout, userEmail, userName }) {
                       <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
                       {!n.is_read && (
                         <button
-                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                           style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
                         >Mark read</button>
                       )}
                       <button
-                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items);} catch {} }}
+                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                         style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
                         aria-label="Delete notification"
                         title="Delete notification"
@@ -825,17 +825,44 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
       {/* SHARE MODAL */}
       {isShareModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={closeShareModal}>
+          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-icon" onClick={closeShareModal} aria-label="Close">
+              ✕
+            </button>
             <h2>Share Form</h2>
             <p>Copy the link below to share this form:</p>
-            <input
-              type="text"
-              value={shareLink}
-              readOnly
-              onFocus={(e) => e.target.select()}
-            />
-            <button onClick={closeShareModal}>Close</button>
+            <div className="share-link-container">
+              <input
+                type="text"
+                value={shareLink}
+                readOnly
+                onFocus={(e) => e.target.select()}
+                className="share-link-input"
+              />
+              <button
+                className="copy-link-btn"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareLink);
+                    // Show success feedback
+                    const btn = document.querySelector('.copy-link-btn');
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓ Copied!';
+                    btn.style.background = '#10b981';
+                    setTimeout(() => {
+                      btn.textContent = originalText;
+                      btn.style.background = '';
+                    }, 2000);
+                  } catch (err) {
+                    console.error('Failed to copy:', err);
+                    alert('Failed to copy link. Please copy manually.');
+                  }
+                }}
+              >
+                Copy Link
+              </button>
+            </div>
           </div>
         </div>
       )}

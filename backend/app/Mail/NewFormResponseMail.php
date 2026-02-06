@@ -32,6 +32,7 @@ class NewFormResponseMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: 'eformxdetails@gmail.com',
             subject: 'New Response for: ' . $this->form->title,
         );
     }

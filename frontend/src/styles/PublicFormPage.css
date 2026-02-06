@@ -37,13 +37,15 @@
     margin: 0;
     font-size: 28px;
     font-weight: 700;
+    color: #ffffff;
 }
 
 .form-description {
     margin: 12px 0 0;
-    opacity: 0.9;
+    opacity: 0.95;
     font-size: 16px;
     line-height: 1.5;
+    color: #ffffff;
 }
 
 .public-form {
@@ -57,20 +59,21 @@
 .form-section h3 {
     font-size: 18px;
     color: #111827;
+    font-weight: 600;
     margin-bottom: 20px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 2px solid #e5e7eb;
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .form-group label {
     display: block;
     margin-bottom: 8px;
-    font-weight: 500;
-    color: #374151;
+    font-weight: 600;
+    color: #1f2937;
     font-size: 14px;
 }
 
@@ -78,17 +81,23 @@
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 10px 14px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 16px;
+    padding: 12px 14px;
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    color: #111827;
+    background-color: #ffffff;
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #9ca3af;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-    outline: none;
     outline: none;
     border-color: var(--primary-teal);
     box-shadow: 0 0 0 3px rgba(26, 95, 111, 0.1);
@@ -97,6 +106,44 @@
 .form-group textarea {
     min-height: 100px;
     resize: vertical;
+    font-family: inherit;
+}
+
+/* Radio and Checkbox Options Styling */
+.options-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.option-item:hover {
+    background-color: #f9fafb;
+}
+
+.option-item input[type="radio"],
+.option-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-teal);
+    flex-shrink: 0;
+}
+
+.option-item span {
+    font-size: 15px;
+    color: #374151;
+    line-height: 1.4;
 }
 
 .submit-btn {
@@ -109,11 +156,16 @@
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.1s;
 }
 
 .submit-btn:hover:not(:disabled) {
     background-color: var(--teal-dark);
+    transform: translateY(-1px);
+}
+
+.submit-btn:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 .submit-btn:disabled {
@@ -190,4 +242,122 @@
     border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.error-card button:hover,
+.success-card button:hover {
+    background-color: var(--teal-dark);
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 768px) {
+    .public-form-container {
+        padding: 24px 16px;
+    }
+
+    .public-logo {
+        height: 32px;
+    }
+
+    .form-info {
+        padding: 28px 24px;
+    }
+
+    .form-info h1 {
+        font-size: 24px;
+    }
+
+    .form-description {
+        font-size: 14px;
+    }
+
+    .public-form {
+        padding: 28px 24px;
+    }
+
+    .form-section h3 {
+        font-size: 16px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px;
+        /* Prevents zoom on iOS */
+    }
+
+    .error-card,
+    .success-card {
+        padding: 32px 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .public-form-container {
+        padding: 20px 12px;
+    }
+
+    .public-logo {
+        height: 28px;
+    }
+
+    .form-info {
+        padding: 24px 20px;
+    }
+
+    .form-info h1 {
+        font-size: 20px;
+    }
+
+    .form-description {
+        font-size: 13px;
+    }
+
+    .public-form {
+        padding: 24px 20px;
+    }
+
+    .form-section h3 {
+        font-size: 15px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        font-size: 13px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 10px 12px;
+        font-size: 16px;
+    }
+
+    .option-item {
+        padding: 8px 10px;
+    }
+
+    .option-item span {
+        font-size: 14px;
+    }
+
+    .submit-btn {
+        padding: 12px;
+        font-size: 15px;
+    }
+
+    .error-card,
+    .success-card {
+        padding: 28px 20px;
+    }
+
+    .success-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
 }

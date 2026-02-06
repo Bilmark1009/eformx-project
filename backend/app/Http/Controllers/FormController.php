@@ -455,17 +455,48 @@ class FormController extends Controller
         $fields = $form->fields ?? [];
         $fieldOrder = [];
 
+        // Map field metadata by ID so we can apply type-specific aggregation rules
+        $fieldMeta = [];
         foreach ($fields as $idx => $field) {
             $id = (string) ($field['id'] ?? $field['name'] ?? 'q' . ($idx + 1));
             $label = $field['label'] ?? $field['title'] ?? $field['question'] ?? $field['name'] ?? ('Question ' . ($idx + 1));
+            $type = isset($field['type']) ? strtolower((string) $field['type']) : 'text';
+            $options = isset($field['options']) && is_array($field['options']) ? $field['options'] : [];
+            $choiceType = isset($field['choiceType']) ? strtolower((string) $field['choiceType']) : null;
+
             $fieldOrder[] = ['id' => $id, 'label' => $label];
+            $fieldMeta[$id] = [
+                'label' => $label,
+                'type' => $type,
+                'options' => $options,
+                'choiceType' => $choiceType,
+            ];
         }
 
         $aggregates = [];
         foreach ($fieldOrder as $field) {
-            $aggregates[$field['id']] = ['total' => 0, 'answers' => []];
+            $id = $field['id'];
+            $meta = $fieldMeta[$id] ?? ['type' => 'text', 'options' => []];
+
+            $aggregates[$id] = [
+                'total' => 0,
+                'answers' => [],
+            ];
+
+            // Pre-seed answer buckets for choice-based questions so that
+            // options with zero responses still appear in the export.
+            if (in_array($meta['type'], ['multiple-choice', 'select', 'radio'], true)) {
+                foreach ($meta['options'] as $opt) {
+                    $label = (string) $opt;
+                    if ($label === '') {
+                        continue;
+                    }
+                    $aggregates[$id]['answers'][$label] = 0;
+                }
+            }
         }
 
+        // Aggregate responses per question / per answer value
         foreach ($form->responses as $response) {
             $entries = $this->normalizeAnswerEntries($response->responses);
             foreach ($entries as $entry) {
@@ -473,9 +504,107 @@ class FormController extends Controller
                 if (!isset($aggregates[$key])) {
                     continue;
                 }
-                $answerText = $this->formatAnswerValue($entry['value']);
+
+                $meta = $fieldMeta[$key] ?? ['type' => 'text', 'choiceType' => null, 'options' => []];
+                $value = $entry['value'] ?? null;
+
+                // Skip completely empty answers
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                $type = $meta['type'];
+                $choiceType = $meta['choiceType'];
+
+                // Multi-select (checkbox) questions: count each selected option
+                if ($type === 'multiple-choice' && $choiceType === 'checkbox' && is_array($value)) {
+                    $selected = array_filter($value, static function ($v) {
+                        return $v !== null && $v !== '' && !is_array($v);
+                    });
+
+                    if (empty($selected)) {
+                        continue;
+                    }
+
+                    $aggregates[$key]['total'] += 1;
+                    foreach ($selected as $v) {
+                        $label = (string) $v;
+                        if ($label === '') {
+                            continue;
+                        }
+                        if (!array_key_exists($label, $aggregates[$key]['answers'])) {
+                            $aggregates[$key]['answers'][$label] = 0;
+                        }
+                        $aggregates[$key]['answers'][$label] += 1;
+                    }
+
+                    continue;
+                }
+
+                // Any other array value (e.g. generic multi-select): count each entry separately
+                if (is_array($value)) {
+                    $flat = array_filter($value, static function ($v) {
+                        return $v !== null && $v !== '' && !is_array($v);
+                    });
+
+                    if (empty($flat)) {
+                        continue;
+                    }
+
+                    $aggregates[$key]['total'] += 1;
+                    foreach ($flat as $v) {
+                        $label = (string) $v;
+                        if ($label === '') {
+                            continue;
+                        }
+                        if (!array_key_exists($label, $aggregates[$key]['answers'])) {
+                            $aggregates[$key]['answers'][$label] = 0;
+                        }
+                        $aggregates[$key]['answers'][$label] += 1;
+                    }
+
+                    continue;
+                }
+
+                // Scalar value: single answer per respondent for this question
+                $answerText = $this->formatAnswerValue($value);
+                if ($answerText === '') {
+                    continue;
+                }
+
                 $aggregates[$key]['total'] += 1;
-                $aggregates[$key]['answers'][$answerText] = ($aggregates[$key]['answers'][$answerText] ?? 0) + 1;
+                if (!array_key_exists($answerText, $aggregates[$key]['answers'])) {
+                    $aggregates[$key]['answers'][$answerText] = 0;
+                }
+                $aggregates[$key]['answers'][$answerText] += 1;
+            }
+        }
+
+        // Post-process rating-style questions so that all scale points appear
+        // even if they were never selected. For now we support the common 1-5
+        // scale, detected either via explicit type or via label pattern.
+        foreach ($fieldOrder as $field) {
+            $id = $field['id'];
+            $meta = $fieldMeta[$id] ?? ['type' => 'text'];
+
+            $isRatingType = in_array($meta['type'], ['rating', 'number'], true);
+            $labelIndicatesOneToFive = preg_match('/1\s*-\s*5/', $field['label']) === 1;
+
+            if ($isRatingType || $labelIndicatesOneToFive) {
+                if (!isset($aggregates[$id])) {
+                    continue;
+                }
+
+                if (!isset($aggregates[$id]['answers'])) {
+                    $aggregates[$id]['answers'] = [];
+                }
+
+                for ($score = 1; $score <= 5; $score++) {
+                    $bucketKey = (string) $score;
+                    if (!array_key_exists($bucketKey, $aggregates[$id]['answers'])) {
+                        $aggregates[$id]['answers'][$bucketKey] = 0;
+                    }
+                }
             }
         }
 
