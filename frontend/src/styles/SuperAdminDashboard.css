@@ -749,13 +749,7 @@ tbody tr:hover {
   gap: 10px;
 }
 
-/* Button group */
-.profile-btn-group {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  margin-top: 25px;
-}
+
 /* Save button */
 .save-btn {
   flex: 1;
@@ -767,6 +761,7 @@ tbody tr:hover {
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s;
+  align-items: center;
 }
 
 .save-btn:hover {

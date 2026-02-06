@@ -556,45 +556,50 @@ function SuperAdminDashboard({ onLogout }) {
               className="profile-input"
             />
             {/* ================= CHANGE PASSWORD TOGGLE ================= */}
+{!showPasswordFields && (
+  <p
+    className="change-password-link"
+    onClick={() => setShowPasswordFields(true)}
+  >
+    Change Password
+  </p>
+)}
 
-              <p
-                  className="change-password-link"
-                  onClick={() => setShowPasswordFields(!showPasswordFields)}
-                >
-                  Change Password
-                </p>
+{showPasswordFields && (
+  <div className="password-section">
+    <input
+      type="password"
+      placeholder="New Password"
+      className="profile-input"
+      value={passwordUI.newPass}
+      onChange={(e) =>
+        setPasswordUI({ ...passwordUI, newPass: e.target.value })
+      }
+    />
 
-                {showPasswordFields && (
-                  <div className="password-section">
-                    <input
-                      type="password"
-                      placeholder="New Password"
-                      className="profile-input"
-                      value={passwordUI.newPass}
-                      onChange={(e) =>
-                        setPasswordUI({ ...passwordUI, newPass: e.target.value })
-                      }
-                    />
-
-                    <input
-                      type="password"
-                      placeholder="Confirm New Password"
-                      className="profile-input"
-                      value={passwordUI.confirm}
-                      onChange={(e) =>
-                        setPasswordUI({ ...passwordUI, confirm: e.target.value })
-                      }
-                    />
-                  </div>
-                )}
+    <input
+      type="password"
+      placeholder="Confirm New Password"
+      className="profile-input"
+      value={passwordUI.confirm}
+      onChange={(e) =>
+        setPasswordUI({ ...passwordUI, confirm: e.target.value })
+      }
+    />
+  </div>
+)}
 
             {/* ========================================================= */}
 
 
 
-            <button className="save-btn" onClick={handleSaveProfile}>
-              Save Changes
-            </button>
+              <div className="profile-btn-group">
+
+                <button className="save-btn" onClick={handleSaveProfile}>
+                   Save Changes
+                </button>
+              </div>
+
           </div>
         </div>
       )}
