@@ -13,8 +13,10 @@ return [
         'http://backend.test'
     ],
 
-    // THIS MUST BE AN EMPTY ARRAY:
-    'allowed_origins_patterns' => [],
+    // Patterns for dynamic origins like Netlify Deploy Previews
+    'allowed_origins_patterns' => [
+        '#^https://.*--e-formx\.netlify\.app$#'
+    ],
 
     'allowed_headers' => ['*'],
 
