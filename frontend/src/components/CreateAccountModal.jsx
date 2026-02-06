@@ -12,12 +12,13 @@ function CreateAccountModal({ isOpen, onClose, onCreate, onUpdate, account }) {
 
   const [message, setMessage] = useState(null);
   const [isError, setIsError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Pre-fill form if editing
   useEffect(() => {
     if (isOpen) {
       if (account) {
-        
+
         setForm({
           name: account.name || "",
           email: account.email || "",
@@ -80,6 +81,7 @@ function CreateAccountModal({ isOpen, onClose, onCreate, onUpdate, account }) {
     };
 
     try {
+      setIsLoading(true);
       if (account) {
         await onUpdate(accountData);
         setMessage("Account successfully updated!");
@@ -98,6 +100,8 @@ function CreateAccountModal({ isOpen, onClose, onCreate, onUpdate, account }) {
         || "An error occurred. Please try again.";
       setIsError(true);
       setMessage(apiMsg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -115,7 +119,7 @@ function CreateAccountModal({ isOpen, onClose, onCreate, onUpdate, account }) {
           </div>
         )}
 
-        <form className="modal-form" onSubmit={handleSubmit}>
+        <form className="modal-form" onSubmit={handleSubmit} autoComplete="off">
           <input
             type="text"
             name="name"
@@ -180,8 +184,11 @@ function CreateAccountModal({ isOpen, onClose, onCreate, onUpdate, account }) {
             </select>
           )}
 
-          <button type="submit" className="create-btn">
-            {account ? "Update Account" : "Create Account"}
+          <button type="submit" className="create-btn" disabled={isLoading}>
+            {isLoading
+              ? (account ? "Updating..." : "Creating...")
+              : (account ? "Update Account" : "Create Account")
+            }
           </button>
         </form>
       </div>

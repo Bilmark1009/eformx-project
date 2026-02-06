@@ -18,6 +18,7 @@ function SuperAdminDashboard({ onLogout }) {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [accountToEdit, setAccountToEdit] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -198,6 +199,8 @@ function SuperAdminDashboard({ onLogout }) {
   };
 
   const confirmDelete = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
     try {
       const target = accountToDelete;
       if (target?.id) {
@@ -224,6 +227,8 @@ function SuperAdminDashboard({ onLogout }) {
         const users = await userService.getUsers();
         setAccounts(users);
       } catch (_) { }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -584,8 +589,9 @@ function SuperAdminDashboard({ onLogout }) {
                 <button
                   className="confirm-delete-btn"
                   onClick={confirmDelete}
+                  disabled={isDeleting}
                 >
-                  Delete
+                  {isDeleting ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>
