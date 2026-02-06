@@ -313,8 +313,26 @@ class AuthController extends Controller
             return null;
         }
 
-        // If it's already an absolute URL, return as-is
+        // If it's already an absolute URL, rewrite it when it points to a
+        // non-public dev host (localhost/backend.test), otherwise return as-is.
         if (preg_match('/^https?:\/\//i', $stored)) {
+            $parts = parse_url($stored);
+            if ($parts && isset($parts['host']) && preg_match('/localhost|backend\.test/i', $parts['host'])) {
+                $base = config('app.url');
+                if (!$base || preg_match('/localhost|backend\.test/i', $base)) {
+                    $request = request();
+                    if ($request) {
+                        $base = $request->getSchemeAndHttpHost();
+                    }
+                }
+                if (!$base) {
+                    $base = env('APP_URL', 'http://localhost');
+                }
+                $base = rtrim($base, '/');
+                $path = ($parts['path'] ?? '') . (isset($parts['query']) ? '?' . $parts['query'] : '');
+                return $base . $path;
+            }
+
             return $stored;
         }
 
