@@ -78,9 +78,10 @@ return [
 
         // Mailtrap HTTP API mailer (preferred when SMTP is blocked)
         'mailtrap' => [
-            // The Mailtrap transport is resolved from the DSN built below.
+            // Target the Mailtrap Sending environment (not Sandbox) by
+            // defaulting the host segment to "send" in the DSN.
             'transport' => 'mailtrap',
-            'url' => env('MAILTRAP_API_URL', 'mailtrap+api://' . env('MAILTRAP_API_TOKEN') . '@default'),
+            'url' => env('MAILTRAP_API_URL', 'mailtrap+api://' . env('MAILTRAP_API_TOKEN') . '@send?category=transactional'),
             'token' => env('MAILTRAP_API_TOKEN'),
         ],
 
