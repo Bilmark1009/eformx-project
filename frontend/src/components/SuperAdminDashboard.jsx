@@ -179,9 +179,13 @@ function SuperAdminDashboard({ onLogout }) {
     try {
       const id = accountToEdit.id;
       const updated = await userService.updateUser(id, updatedAccount, accountToEdit.role);
-      setAccounts((prev) =>
-        prev.map(acc => acc.id === id ? updated : acc)
-      );
+      setAccounts((prev) => prev.map((acc) => {
+        const sameId = acc.id === id;
+        const sameRole = String(acc.role || "").toLowerCase() === String(accountToEdit.role || "").toLowerCase();
+        const sameEmail = String(acc.email || "").toLowerCase() === String(accountToEdit.email || "").toLowerCase();
+
+        return sameId && (sameRole || sameEmail) ? updated : acc;
+      }));
       setAccountToEdit(null);
       setIsModalOpen(false);
       setError("");
@@ -205,7 +209,13 @@ function SuperAdminDashboard({ onLogout }) {
       const target = accountToDelete;
       if (target?.id) {
         // Optimistic update - remove immediately
-        setAccounts((prev) => prev.filter(acc => acc.id !== target.id));
+        setAccounts((prev) => prev.filter((acc) => {
+          const sameId = acc.id === target.id;
+          const sameRole = String(acc.role || "").toLowerCase() === String(target.role || "").toLowerCase();
+          const sameEmail = String(acc.email || "").toLowerCase() === String(target.email || "").toLowerCase();
+
+          return !(sameId && (sameRole || sameEmail));
+        }));
         setIsDeleteModalOpen(false);
         setAccountToDelete(null);
 
