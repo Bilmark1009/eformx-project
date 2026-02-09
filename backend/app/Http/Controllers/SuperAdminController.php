@@ -30,7 +30,7 @@ class SuperAdminController extends Controller
                 'name' => $a->name,
                 'email' => $a->email,
                 'role' => 'Super Admin',
-                'status' => 'Active',
+                'status' => $a->status ?? 'Active',
             ];
         });
 
@@ -51,6 +51,7 @@ class SuperAdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:super_admins,email',
             'password' => 'required|string|min:6',
+            'status' => 'nullable|in:Active,Inactive',
         ]);
 
         // Prevent creating a SuperAdmin when a regular user with same email exists
@@ -60,6 +61,10 @@ class SuperAdminController extends Controller
 
         $rawPassword = $validated['password'];
         $validated['password'] = Hash::make($rawPassword);
+
+        if (!isset($validated['status'])) {
+            $validated['status'] = 'Active';
+        }
 
         $admin = SuperAdmin::create($validated);
 
@@ -92,7 +97,7 @@ class SuperAdminController extends Controller
             'name' => $admin->name,
             'email' => $admin->email,
             'role' => 'Super Admin',
-            'status' => 'Active',
+            'status' => $admin->status,
         ], 201);
     }
 
@@ -113,6 +118,7 @@ class SuperAdminController extends Controller
             'email' => ['sometimes', 'required', 'email', 'unique:super_admins,email,' . $admin->id],
             'password' => 'sometimes|nullable|string|min:6',
             'role' => 'nullable|string|max:50',
+            'status' => 'nullable|in:Active,Inactive',
         ]);
 
         // If role is changing to Admin/User, convert account to users table
@@ -128,7 +134,7 @@ class SuperAdminController extends Controller
                     ? \Illuminate\Support\Facades\Hash::make($validated['password'])
                     : $admin->password,
                 'role' => $validated['role'] ?? 'Admin',
-                'status' => 'Active',
+                'status' => $validated['status'] ?? ($existingUser?->status ?? $admin->status ?? 'Active'),
             ];
 
             if ($existingUser) {
@@ -152,6 +158,13 @@ class SuperAdminController extends Controller
             $admin->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
         }
 
+        if (isset($validated['status'])) {
+            $admin->status = $validated['status'];
+            if (strcasecmp($validated['status'], 'Inactive') === 0) {
+                $admin->tokens()->delete();
+            }
+        }
+
         $admin->save();
 
         return response()->json([
@@ -159,7 +172,7 @@ class SuperAdminController extends Controller
             'name' => $admin->name,
             'email' => $admin->email,
             'role' => 'Super Admin',
-            'status' => 'Active',
+            'status' => $admin->status ?? 'Active',
         ]);
     }
 
