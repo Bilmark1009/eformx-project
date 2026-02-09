@@ -17,6 +17,7 @@ class SuperAdmin extends Model
         'email',
         'password',
         'avatar_url',
+        'status',
     ];
 
     protected $hidden = [

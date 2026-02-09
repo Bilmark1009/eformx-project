@@ -147,6 +147,9 @@ class UserController extends Controller
             }
         }
 
+        $previousStatus = $user?->status ?? 'Active';
+        $previousRole = $user?->role;
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($user?->id ?? $id)],
@@ -215,6 +218,19 @@ class UserController extends Controller
 
             // Normal user update
             $user->update($validated);
+
+            $newStatus = $user->status ?? 'Active';
+            $roleNow = $user->role ?? $previousRole;
+            if (strcasecmp($roleNow ?? '', 'Admin') === 0 && strcasecmp($previousStatus, $newStatus) !== 0) {
+                $isReactivated = strcasecmp($newStatus, 'Active') === 0;
+                Notification::create([
+                    'title' => $isReactivated ? 'Admin Account Reactivated' : 'Admin Account Deactivated',
+                    'message' => ($isReactivated ? 'Admin account reactivated: ' : 'Admin account deactivated: ') . $user->email,
+                    'type' => $isReactivated ? 'success' : 'warning',
+                    'recipient_admin_id' => $request->user()->id,
+                ]);
+            }
+
             return response()->json($user);
         }
 
@@ -237,7 +253,19 @@ class UserController extends Controller
             } else {
                 $payload['password'] = $existingUser->password ?? $admin->password; // keep current/historical
             }
+            $previousStatus = $existingUser->status ?? 'Active';
             $existingUser->update($payload);
+
+            $newStatus = $existingUser->status ?? 'Active';
+            if (strcasecmp($existingUser->role ?? '', 'Admin') === 0 && strcasecmp($previousStatus, $newStatus) !== 0) {
+                $isReactivated = strcasecmp($newStatus, 'Active') === 0;
+                Notification::create([
+                    'title' => $isReactivated ? 'Admin Account Reactivated' : 'Admin Account Deactivated',
+                    'message' => ($isReactivated ? 'Admin account reactivated: ' : 'Admin account deactivated: ') . $existingUser->email,
+                    'type' => $isReactivated ? 'success' : 'warning',
+                    'recipient_admin_id' => $request->user()->id,
+                ]);
+            }
             // Delete SuperAdmin record after conversion
             $admin->delete();
             return response()->json($existingUser);
