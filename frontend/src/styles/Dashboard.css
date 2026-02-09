@@ -130,9 +130,11 @@ body {
   padding: 10px 12px;
   border-bottom: 1px solid #eee;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
 .notifications-title {
@@ -145,9 +147,11 @@ body {
 .notifications-actions {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  margin-left: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .notifications-action {
