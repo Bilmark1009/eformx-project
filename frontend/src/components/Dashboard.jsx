@@ -618,68 +618,60 @@ function Dashboard({ onLogout, userEmail, userName }) {
           <img src={headerLogo} alt="eFormX" className="header-logo" />
         </div>
         <div className="header-right">
-          <div style={{ position: "relative", marginRight: 16 }}>
-            <FaBell className="icon-bell" onClick={() => setShowNotifications(v => !v)} style={{ cursor: "pointer" }} />
+          <div className="notifications">
+            <FaBell
+              className="icon-bell"
+              onClick={() => setShowNotifications((v) => !v)}
+              aria-label="Notifications"
+              title="Notifications"
+            />
             {unreadCount > 0 && (
-              <span style={{
-                position: "absolute",
-                top: -6,
-                right: -6,
-                background: "#ef4444",
-                color: "#fff",
-                borderRadius: "9999px",
-                fontSize: 12,
-                padding: "2px 6px"
-              }}>{unreadCount}</span>
+              <span className="notifications-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount}
+              </span>
             )}
             {showNotifications && (
-              <div style={{
-                position: "absolute",
-                right: 0,
-                top: 28,
-                width: 280,
-                background: "#fff",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                borderRadius: 8,
-                overflow: "hidden",
-                zIndex: 20
-              }}>
-                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 600 }}>Notifications</span>
-                  <button
-                    onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                    style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
-                  >Mark all read</button>
-                  <button
-                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
-                  >Delete all</button>
+              <div className="notifications-dropdown" role="menu" aria-label="Notifications menu">
+                <div className="notifications-dropdown-header">
+                  <span className="notifications-title">Notifications</span>
+                  <div className="notifications-actions">
+                    <button
+                      onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                      className="notifications-action notifications-action-primary"
+                    >Mark all read</button>
+                    <button
+                      onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                      className="notifications-action notifications-action-danger"
+                    >Delete all</button>
+                  </div>
                 </div>
                 <button
                   onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
-                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
+                  className="notifications-viewall"
                 >View all</button>
-                <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                <div className="notifications-list">
                   {notifications.length === 0 ? (
-                    <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
+                    <div className="notifications-empty">No notifications</div>
                   ) : notifications.map(n => (
-                    <div key={n.id} style={{ padding: 12, borderBottom: "1px solid #f3f4f6", background: n.is_read ? "#fff" : "#f9fafb" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
-                      <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
-                      {!n.is_read && (
+                    <div key={n.id} className={`notifications-item ${n.is_read ? "is-read" : "is-unread"}`}>
+                      <div className="notifications-item-title">{n.title}</div>
+                      <div className="notifications-item-message">{n.message}</div>
+                      <div className="notifications-item-footer">
+                        {!n.is_read && (
+                          <button
+                            onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                            className="notifications-action notifications-action-primary"
+                          >Mark read</button>
+                        )}
                         <button
-                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                          style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
-                        >Mark read</button>
-                      )}
-                      <button
-                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                        style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
-                        aria-label="Delete notification"
-                        title="Delete notification"
-                      >
-                        <FaTrash />
-                      </button>
+                          onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                          className="notifications-icon-btn notifications-action-danger"
+                          aria-label="Delete notification"
+                          title="Delete notification"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
