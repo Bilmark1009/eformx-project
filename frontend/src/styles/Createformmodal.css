@@ -12,6 +12,9 @@
   z-index: 1000;
   backdrop-filter: blur(4px);
   animation: fadeIn 0.2s ease-out;
+  padding: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 @keyframes fadeIn {
@@ -28,18 +31,18 @@
 .modal-container {
   background: #ffffff;
   border-radius: 16px;
-  width: 90%;
+  width: 100%;
   max-width: 600px;
+  min-width: 0;
   max-height: 90vh;
-  /* Keeps it within viewport */
   display: flex;
-  /* Changed to flex for sticky header/footer support */
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   position: relative;
   animation: slideUp 0.3s ease-out;
   overflow: hidden;
-  /* Prevent double scrollbars */
+  margin: auto;
+  flex-shrink: 0;
 }
 
 @keyframes slideUp {
@@ -87,9 +90,9 @@
 .modal-content {
   padding: 32px;
   overflow-y: auto;
-  /* Internal scrolling */
   flex: 1;
-  /* Take remaining space */
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ==================== FIELD ERROR MESSAGE ==================== */
@@ -265,9 +268,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid #e8ecef;
+  min-width: 0;
 }
 
 .field-type-badge {
@@ -280,6 +285,15 @@
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.field-type-badge span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .grip-icon {
@@ -300,6 +314,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .remove-field-btn:hover {
@@ -317,6 +332,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .field-label {
@@ -345,6 +361,8 @@
 .form-group select,
 .form-group textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 12px 16px;
   border: 2px solid #e8ecef;
   border-radius: 12px;
@@ -354,6 +372,7 @@
   transition: all 0.2s ease;
   outline: none;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .form-group input[type="text"]:focus,
@@ -393,6 +412,16 @@
   display: flex;
   gap: 10px;
   align-items: center;
+  min-width: 0;
+}
+
+.option-item input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.option-item button {
+  flex-shrink: 0;
 }
 
 .option-input {
@@ -559,13 +588,16 @@
 
 /* ==================== RESPONSIVE DESIGN ==================== */
 @media (max-width: 768px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
   .modal-container {
-    width: 95%;
-    max-width: 95%;
-    max-height: calc(100vh - 20px);
-    /* Better for mobile browser bars */
-    margin: 10px;
-    /* Force margin */
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 24px);
+    margin: 0 auto;
   }
 
   .modal-content {
@@ -603,15 +635,12 @@
   }
 
   .option-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    flex-wrap: wrap;
   }
 
-  .option-item input[type="text"],
-  .option-item input[type="radio"],
-  .option-item input[type="checkbox"] {
-    width: 100%;
+  .option-item input[type="text"] {
+    flex: 1 1 calc(100% - 44px);
+    min-width: 120px;
   }
 
   .modal-close {
@@ -624,10 +653,15 @@
 }
 
 @media (max-width: 480px) {
+  .modal-overlay {
+    padding: 8px;
+  }
+
   .modal-container {
-    width: 98%;
-    max-height: calc(100vh - 10px);
-    margin: 5px;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 16px);
+    margin: 0 auto;
   }
 
   .modal-content {
@@ -708,4 +742,16 @@
 
 .modal-container::-webkit-scrollbar-thumb:hover {
   background: #5a8a96;
+}
+
+/* Short viewport: align modal to top so it can scroll */
+@media (max-height: 600px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .modal-container {
+    max-height: calc(100vh - 24px);
+  }
 }
