@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-import CreateFormModal from "./Createformmodal";
 import logo from "../assets/eFormX.png";
 import headerLogo from "../assets/logoforheader.png";
 import formService from "../services/formService";
@@ -137,7 +136,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   // ===== MODAL HANDLERS =====
-  const openModal = () => setIsModalOpen(true);
+  const openModal = () => navigate("/builder");
   const closeModal = () => {
     setIsModalOpen(false);
     setIsEditMode(false);
@@ -171,10 +170,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
   // ===== EDIT =====
   const handleEditForm = (formId) => {
-    const selected = forms.find((f) => f.id === formId);
-    setFormToEdit(selected);
-    setIsEditMode(true);
-    setIsModalOpen(true);
+    navigate(`/builder/${formId}`);
   };
 
   // ===== TOGGLE STATUS (Activate/Deactivate) =====
@@ -806,14 +802,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         </div>
       </div>
 
-      {/* CREATE / EDIT MODAL */}
-      <CreateFormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onCreateForm={handleCreateForm}
-        editMode={isEditMode}
-        formData={formToEdit}
-      />
+      {/* CREATE / EDIT MODAL (REMOVED) */}
 
       {/* SHARE MODAL */}
       {isShareModalOpen && (

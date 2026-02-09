@@ -8,6 +8,7 @@ import authService from "./services/authService";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import NotificationsPage from "./pages/NotificationsPage";
+import FormBuilder from "./pages/FormBuilder";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -58,6 +59,26 @@ function App() {
           element={
             user ? (
               <NotificationsPage />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/builder"
+          element={
+            user ? (
+              <FormBuilder />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/builder/:id"
+          element={
+            user ? (
+              <FormBuilder />
             ) : (
               <Navigate to="/" replace />
             )
