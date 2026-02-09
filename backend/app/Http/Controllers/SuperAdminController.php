@@ -113,6 +113,8 @@ class SuperAdminController extends Controller
 
         $admin = SuperAdmin::findOrFail($id);
 
+        $previousStatus = $admin->status ?? 'Active';
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', 'unique:super_admins,email,' . $admin->id],
@@ -166,6 +168,16 @@ class SuperAdminController extends Controller
         }
 
         $admin->save();
+
+        if (array_key_exists('status', $validated) && strcasecmp($validated['status'], $previousStatus) !== 0) {
+            $action = strcasecmp($validated['status'], 'Inactive') === 0 ? 'deactivated' : 'reactivated';
+            Notification::create([
+                'title' => 'Super Admin Account ' . ucfirst($action),
+                'message' => 'Super Admin account ' . $action . ': ' . ($admin->email ?? ''),
+                'type' => 'info',
+                'recipient_admin_id' => $request->user()->id,
+            ]);
+        }
 
         return response()->json([
             'id' => $admin->id,

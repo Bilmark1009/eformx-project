@@ -175,6 +175,7 @@ class UserController extends Controller
 
         // If this request targets an existing User record
         if ($user) {
+            $previousStatus = $user->status ?? 'Active';
             // Prevent updating email to one that belongs to a SuperAdmin
             if (array_key_exists('email', $validated) && SuperAdmin::where('email', $validated['email'])->exists()) {
                 return response()->json(['message' => 'Email already registered as a Super Admin'], 422);
@@ -215,6 +216,21 @@ class UserController extends Controller
 
             // Normal user update
             $user->update($validated);
+
+            if (array_key_exists('status', $validated) && strcasecmp($validated['status'], $previousStatus) !== 0) {
+                $roleValue = $user->role ?? '';
+                $roleLower = strtolower($roleValue);
+                if (in_array($roleLower, ['admin', 'super admin'])) {
+                    $action = strcasecmp($validated['status'], 'Inactive') === 0 ? 'deactivated' : 'reactivated';
+                    $roleLabel = $roleLower === 'super admin' ? 'Super Admin' : 'Admin';
+                    Notification::create([
+                        'title' => $roleLabel . ' Account ' . ucfirst($action),
+                        'message' => $roleLabel . ' account ' . $action . ': ' . ($user->email ?? ''),
+                        'type' => 'info',
+                        'recipient_admin_id' => $request->user()->id,
+                    ]);
+                }
+            }
             return response()->json($user);
         }
 
@@ -230,7 +246,7 @@ class UserController extends Controller
                 'name' => $validated['name'] ?? $existingUser->name ?? $admin->name,
                 'email' => $validated['email'] ?? $existingUser->email ?? $admin->email,
                 'role' => $validated['role'] ?? ($existingUser->role ?: 'Admin'),
-                'status' => $validated['status'] ?? ($existingUser->status ?: 'Active'),
+                'status' => $validated['status'] ?? ($existingUser->status ?: $admin->status ?: 'Active'),
             ];
             if (isset($validated['password']) && !empty($validated['password'])) {
                 $payload['password'] = Hash::make($validated['password']);
