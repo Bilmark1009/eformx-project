@@ -235,8 +235,8 @@ class FormController extends Controller
         $summarySheet->setCellValue('B2', $form->analytics['totalRespondents'] ?? 0);
         $summarySheet->setCellValue('A3', 'Completion Rate');
         $summarySheet->setCellValue('B3', ($form->analytics['completionRate'] ?? 0) . '%');
-        $summarySheet->setCellValue('A4', 'Recent Activity (7d)');
-        $summarySheet->setCellValue('B4', $form->analytics['recentActivity'] ?? 0);
+        $summarySheet->setCellValue('A4', 'Recent Activity (1h)');
+        $summarySheet->setCellValue('B4', ($form->analytics['recentActivity'] ?? 0) . '%');
 
         // Totals per question for chart
         $summarySheet->setCellValue('A6', 'Question');

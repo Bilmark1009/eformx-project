@@ -887,7 +887,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 <div className="stat-label">Total Respondents</div>
                 <div className="stat-value">
                   {selectedFormAnalytics.analytics.totalRespondents}
-                  <span className="stat-percentage">%</span>
                 </div>
               </div>
               <div className="stat-card">
