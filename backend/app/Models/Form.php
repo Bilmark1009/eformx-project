@@ -39,12 +39,19 @@ class Form extends Model
     public function getAnalyticsAttribute()
     {
         $totalRespondents = $this->responses()->count();
-        $recentActivity = $this->responses()->where('created_at', '>=', now()->subDays(7))->count();
+        $recentActivityCount = $this->responses()
+            ->where('created_at', '>=', now()->subHour())
+            ->count();
+
+        $recentActivityPercent = 0;
+        if ($totalRespondents > 0) {
+            $recentActivityPercent = round(($recentActivityCount / $totalRespondents) * 100, 2);
+        }
 
         return [
             'totalRespondents' => $totalRespondents,
             'completionRate' => $totalRespondents > 0 ? 100 : 0, // Simplified for now
-            'recentActivity' => $recentActivity,
+            'recentActivity' => $recentActivityPercent,
         ];
     }
 }
