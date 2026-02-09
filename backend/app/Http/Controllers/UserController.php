@@ -16,6 +16,21 @@ use App\Models\Notification;
 class UserController extends Controller
 {
     /**
+     * Create a notification without failing the primary operation.
+     */
+    private function safeNotify(array $payload): void
+    {
+        try {
+            Notification::create($payload);
+        } catch (\Throwable $e) {
+            Log::warning('Notification creation failed', [
+                'payload' => $payload,
+                'exception' => $e,
+            ]);
+        }
+    }
+
+    /**
      * Display a listing of all users.
      */
     public function index(Request $request)
@@ -65,7 +80,7 @@ class UserController extends Controller
             ? 'Super Admin'
             : ucwords(strtolower($createdRole));
 
-        Notification::create([
+        $this->safeNotify([
             'title' => $createdRoleLabel . ' Account Created',
             'message' => $createdRoleLabel . ' account created: ' . $user->email,
             'type' => 'success',
@@ -77,7 +92,7 @@ class UserController extends Controller
         if (SuperAdmin::where('email', $user->email)->exists()) {
             // delete created user to avoid duplicates
             $user->delete();
-            Notification::create([
+            $this->safeNotify([
                 'title' => 'Account Creation Failed',
                 'message' => 'Email already registered as a Super Admin: ' . $validated['email'],
                 'type' => 'error',
@@ -98,7 +113,7 @@ class UserController extends Controller
                     'exception' => $e,
                 ]);
                 // Do not block user creation on mail failure
-                Notification::create([
+                $this->safeNotify([
                     'title' => 'Mail Delivery Warning',
                     'message' => 'Failed to send credentials email to: ' . $user->email,
                     'type' => 'warning',
@@ -160,7 +175,7 @@ class UserController extends Controller
 
         // Prevent updating email to one that belongs to a SuperAdmin
         if (array_key_exists('email', $validated) && SuperAdmin::where('email', $validated['email'])->exists()) {
-            Notification::create([
+            $this->safeNotify([
                 'title' => 'Update Failed',
                 'message' => 'Email belongs to a Super Admin: ' . $validated['email'],
                 'type' => 'error',
@@ -223,7 +238,7 @@ class UserController extends Controller
             $roleNow = $user->role ?? $previousRole;
             if (strcasecmp($roleNow ?? '', 'Admin') === 0 && strcasecmp($previousStatus, $newStatus) !== 0) {
                 $isReactivated = strcasecmp($newStatus, 'Active') === 0;
-                Notification::create([
+                $this->safeNotify([
                     'title' => $isReactivated ? 'Admin Account Reactivated' : 'Admin Account Deactivated',
                     'message' => ($isReactivated ? 'Admin account reactivated: ' : 'Admin account deactivated: ') . $user->email,
                     'type' => $isReactivated ? 'success' : 'warning',
@@ -259,7 +274,7 @@ class UserController extends Controller
             $newStatus = $existingUser->status ?? 'Active';
             if (strcasecmp($existingUser->role ?? '', 'Admin') === 0 && strcasecmp($previousStatus, $newStatus) !== 0) {
                 $isReactivated = strcasecmp($newStatus, 'Active') === 0;
-                Notification::create([
+                $this->safeNotify([
                     'title' => $isReactivated ? 'Admin Account Reactivated' : 'Admin Account Deactivated',
                     'message' => ($isReactivated ? 'Admin account reactivated: ' : 'Admin account deactivated: ') . $existingUser->email,
                     'type' => $isReactivated ? 'success' : 'warning',
@@ -317,7 +332,7 @@ class UserController extends Controller
                 'exception' => $e,
             ]);
             // Emit a warning notification if mail fails
-            Notification::create([
+            $this->safeNotify([
                 'title' => 'Mail Delivery Warning',
                 'message' => 'Failed to send account deletion email to: ' . $email,
                 'type' => 'warning',
@@ -326,7 +341,7 @@ class UserController extends Controller
         }
 
         // Emit a success notification for the acting Super Admin (role-aware)
-        Notification::create([
+        $this->safeNotify([
             'title' => $roleLabel . ' Account Deleted',
             'message' => $roleLabel . ' account deleted: ' . $email,
             'type' => 'success',

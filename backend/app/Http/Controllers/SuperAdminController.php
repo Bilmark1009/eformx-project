@@ -15,6 +15,21 @@ use App\Models\Notification;
 class SuperAdminController extends Controller
 {
     /**
+     * Create a notification without interrupting primary operations.
+     */
+    private function safeNotify(array $payload): void
+    {
+        try {
+            Notification::create($payload);
+        } catch (\Throwable $e) {
+            Log::warning('Notification creation failed', [
+                'payload' => $payload,
+                'exception' => $e,
+            ]);
+        }
+    }
+
+    /**
      * Display a listing of super admins.
      */
     public function index(Request $request)
@@ -76,7 +91,7 @@ class SuperAdminController extends Controller
                 'email' => $admin->email,
                 'exception' => $e,
             ]);
-            Notification::create([
+            $this->safeNotify([
                 'title' => 'Mail Delivery Warning',
                 'message' => 'Failed to send credentials email to Super Admin: ' . $admin->email,
                 'type' => 'warning',
@@ -85,7 +100,7 @@ class SuperAdminController extends Controller
         }
 
         // Return a payload consistent with frontend expectations
-        Notification::create([
+        $this->safeNotify([
             'title' => 'Super Admin Account Created',
             'message' => 'Super Admin account created: ' . $admin->email,
             'type' => 'success',
@@ -174,7 +189,7 @@ class SuperAdminController extends Controller
 
         if (strcasecmp($previousStatus, $currentStatus) !== 0) {
             $isReactivated = strcasecmp($currentStatus, 'Active') === 0;
-            Notification::create([
+            $this->safeNotify([
                 'title' => $isReactivated ? 'Super Admin Account Reactivated' : 'Super Admin Account Deactivated',
                 'message' => ($isReactivated ? 'Super Admin account reactivated: ' : 'Super Admin account deactivated: ') . $admin->email,
                 'type' => $isReactivated ? 'success' : 'warning',
@@ -216,7 +231,7 @@ class SuperAdminController extends Controller
                 'email' => $email,
                 'exception' => $e,
             ]);
-            Notification::create([
+            $this->safeNotify([
                 'title' => 'Mail Delivery Warning',
                 'message' => 'Failed to send account deletion email to Super Admin: ' . $email,
                 'type' => 'warning',
@@ -225,7 +240,7 @@ class SuperAdminController extends Controller
         }
 
         // Emit success notification for the acting Super Admin
-        Notification::create([
+        $this->safeNotify([
             'title' => 'Super Admin Account Deleted',
             'message' => 'Super Admin account deleted: ' . $email,
             'type' => 'success',
