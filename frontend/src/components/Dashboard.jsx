@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-import logo from "../assets/eFormX.png";
+
 import headerLogo from "../assets/logoforheader.png";
 import formService from "../services/formService";
 import notificationsService from "../services/notificationsService";
@@ -29,9 +29,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [formToEdit, setFormToEdit] = useState(null);
+
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareLink, setShareLink] = useState("");
@@ -137,36 +135,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
   // ===== MODAL HANDLERS =====
   const openModal = () => navigate("/builder");
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setIsEditMode(false);
-    setFormToEdit(null);
-  };
+
 
   // ===== CREATE / UPDATE =====
-  const handleCreateForm = async (formData) => {
-    try {
-      if (isEditMode) {
-        const updated = await formService.updateForm(formToEdit.id, {
-          ...formData,
-          status: formToEdit.status // Maintain current status on edit
-        });
-        console.log('Updated form data:', updated);
-        setForms(forms.map((f) => (f.id === updated.id ? updated : f)));
-      } else {
-        const created = await formService.createForm({
-          ...formData,
-          status: 'active' // Default status
-        });
-        console.log('Created form data:', created);
-        setForms([created, ...forms]);
-      }
-      closeModal();
-    } catch (err) {
-      console.error("Failed to save form:", err);
-      alert("Failed to save form. Please try again.");
-    }
-  };
+
 
   // ===== EDIT =====
   const handleEditForm = (formId) => {

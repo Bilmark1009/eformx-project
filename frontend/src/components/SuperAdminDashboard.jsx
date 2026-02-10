@@ -309,23 +309,25 @@ function SuperAdminDashboard({ onLogout }) {
             )}
             {showNotifications && (
               <div className="notification-dropdown">
-                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                   <span style={{ fontWeight: 600 }}>Notifications</span>
-                  <button
-                    onClick={async () => {
-                      try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { }
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
-                  >Mark all read</button>
-                  <button
-                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
-                  >Delete all</button>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <button
+                      onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
+                      style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontWeight: 600 }}
+                    >View all</button>
+                    <button
+                      onClick={async () => {
+                        try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { }
+                      }}
+                      style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
+                    >Mark all read</button>
+                    <button
+                      onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                      style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer" }}
+                    >Delete all</button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
-                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
-                >View all</button>
                 <div className="notification-list">
                   {notifications.length === 0 ? (
                     <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
