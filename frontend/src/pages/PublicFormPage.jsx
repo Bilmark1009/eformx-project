@@ -4,6 +4,30 @@ import formService from '../services/formService';
 import '../styles/PublicFormPage.css';
 import logo from '../assets/eFormX.png';
 
+const STUDENT_ID_STORAGE_KEY = 'eformx_student_id';
+
+const getOrCreateStudentId = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        let existing = localStorage.getItem(STUDENT_ID_STORAGE_KEY);
+        if (!existing) {
+            const randomPart =
+                typeof crypto !== 'undefined' && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : Math.random().toString(36).substring(2, 12);
+            existing = `student_${randomPart}`;
+            localStorage.setItem(STUDENT_ID_STORAGE_KEY, existing);
+        }
+        return existing;
+    } catch (err) {
+        console.error('Failed to access localStorage for student id', err);
+        return null;
+    }
+};
+
 const PublicFormPage = () => {
     const { id } = useParams();
     const [form, setForm] = useState(null);
@@ -12,11 +36,16 @@ const PublicFormPage = () => {
     const [error, setError] = useState('');
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [studentId] = useState(getOrCreateStudentId);
 
     useEffect(() => {
+        if (!studentId) {
+            return;
+        }
+
         const fetchForm = async () => {
             try {
-                const data = await formService.getPublicForm(id);
+                const data = await formService.getPublicForm(id, studentId);
                 setForm(data);
 
                 // Initialize form data with empty strings for all fields
@@ -44,7 +73,7 @@ const PublicFormPage = () => {
         };
 
         fetchForm();
-    }, [id]);
+    }, [id, studentId]);
 
     const handleInputChange = (fieldId, value) => {
         setFormData(prev => ({
@@ -63,7 +92,8 @@ const PublicFormPage = () => {
             const submission = {
                 respondent_name: formData.respondent_name,
                 respondent_email: formData.respondent_email,
-                responses: { ...formData }
+                responses: { ...formData },
+                student_id: studentId,
             };
 
             // Remove meta fields from responses object
