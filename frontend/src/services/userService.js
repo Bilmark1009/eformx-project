@@ -108,6 +108,11 @@ const userService = {
         const response = await api.delete(`/users/${id}`);
         return response.data;
     },
+
+    async getSystemStats() {
+        const response = await api.get('/super-admin/stats');
+        return response.data;
+    }
 };
 
 export default userService;

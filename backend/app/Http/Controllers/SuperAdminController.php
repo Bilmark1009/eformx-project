@@ -11,9 +11,48 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
+use App\Models\Form;
+use App\Models\FormResponse;
 
 class SuperAdminController extends Controller
 {
+    /**
+     * Display system-wide stats for super admins.
+     */
+    public function stats(Request $request)
+    {
+        // Only SuperAdmin can view system stats
+        if (!($request->user() instanceof SuperAdmin)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $totalRegularUsers = User::count();
+        $totalSuperAdmins = SuperAdmin::count();
+        $totalForms = Form::count();
+        $totalResponses = FormResponse::count();
+
+        // Role distribution
+        $roleDistribution = User::select('role', \DB::raw('count(*) as count'))
+            ->groupBy('role')
+            ->get();
+
+        // Add SuperAdmins to role distribution for a complete picture
+        $roleDistribution->push((object) [
+            'role' => 'Super Admin',
+            'count' => $totalSuperAdmins
+        ]);
+
+        return response()->json([
+            'metrics' => [
+                'total_users' => $totalRegularUsers + $totalSuperAdmins,
+                'total_forms' => $totalForms,
+                'total_responses' => $totalResponses,
+                'active_admins' => SuperAdmin::where('status', 'Active')->count(),
+            ],
+            'distribution' => $roleDistribution
+        ]);
+    }
+
     /**
      * Display a listing of super admins.
      */

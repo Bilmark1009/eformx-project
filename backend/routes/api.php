@@ -61,4 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::delete('/notifications', [NotificationController::class, 'destroyAll']);
+
+    // System Stats for SuperAdmin
+    Route::get('/super-admin/stats', [SuperAdminController::class, 'stats']);
 });

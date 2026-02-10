@@ -53,7 +53,8 @@ const FormBuilder = () => {
             label: "",
             required: false,
             placeholder: type === "text" ? "Enter placeholder text..." : "",
-            options: type === "multiple-choice" ? ["Option 1", "Option 2"] : []
+            options: type === "multiple-choice" ? ["Option 1", "Option 2"] : [],
+            choiceType: type === "multiple-choice" ? "radio" : null
         };
         setFields([...fields, newField]);
         setErrors({ ...errors, fields: null });
@@ -287,10 +288,26 @@ const FormBuilder = () => {
 
                                     {field.type === "multiple-choice" && (
                                         <div className="field-options-list">
-                                            <label className="builder-label">Options</label>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                                <label className="builder-label" style={{ marginBottom: 0 }}>Options</label>
+                                                <select
+                                                    className="choice-type-select"
+                                                    value={field.choiceType || "radio"}
+                                                    onChange={(e) => updateField(field.id, { choiceType: e.target.value })}
+                                                    style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                                                >
+                                                    <option value="radio">Single Choice (Radio)</option>
+                                                    <option value="checkbox">Multiple Choice (Checkbox)</option>
+                                                </select>
+                                            </div>
                                             {field.options.map((opt, optIndex) => (
                                                 <div key={optIndex} className="option-row">
-                                                    <div className="dot" style={{ width: 10, height: 10, borderRadius: '50%', background: '#cbd5e1' }} />
+                                                    <div className="dot" style={{
+                                                        width: 10,
+                                                        height: 10,
+                                                        borderRadius: field.choiceType === 'checkbox' ? '2px' : '50%',
+                                                        background: '#cbd5e1'
+                                                    }} />
                                                     <input
                                                         type="text"
                                                         className="option-input"

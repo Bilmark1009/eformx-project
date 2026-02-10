@@ -632,6 +632,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
                   <span className="notifications-title">Notifications</span>
                   <div className="notifications-actions">
                     <button
+                      onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
+                      className="notifications-action notifications-action-primary"
+                    >View all</button>
+                    <button
                       onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
                       className="notifications-action notifications-action-primary"
                     >Mark all read</button>
@@ -641,10 +645,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
                     >Delete all</button>
                   </div>
                 </div>
-                <button
-                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
-                  className="notifications-viewall"
-                >View all</button>
                 <div className="notifications-list">
                   {notifications.length === 0 ? (
                     <div className="notifications-empty">No notifications</div>
@@ -725,27 +725,31 @@ function Dashboard({ onLogout, userEmail, userName }) {
                     style={{ cursor: "pointer" }}
                   >
                     <div className="form-card-header">
-                      <h2>{form.title || "Untitled Form"}</h2>
-                      <span className={`status-badge ${String(form.status || 'active').toLowerCase()}`}>
-                        {String(form.status || 'active').toUpperCase()}
-                      </span>
-                      <div className="card-actions">
-                        <FaChartBar
-                          className="action-icon"
-                          title="Analytics"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAnalytics(form.id);
-                          }}
-                        />
-                        <FaTrash
-                          className="action-icon"
-                          title="Delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteForm(form.id);
-                          }}
-                        />
+                      <h2 className={(form.title || "").length > 30 ? "long-title" : ""}>
+                        {form.title || "Untitled Form"}
+                      </h2>
+                      <div className="form-card-status-group">
+                        <span className={`status-badge ${String(form.status || 'active').toLowerCase()}`}>
+                          {String(form.status || 'active').toUpperCase()}
+                        </span>
+                        <div className="card-actions">
+                          <FaChartBar
+                            className="action-icon"
+                            title="Analytics"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAnalytics(form.id);
+                            }}
+                          />
+                          <FaTrash
+                            className="action-icon"
+                            title="Delete"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteForm(form.id);
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                     <p className="form-description">{form.description || "No description provided."}</p>

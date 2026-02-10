@@ -1,20 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/SuperAdminDashboard.css";
-import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera } from "react-icons/fa";
+import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera, FaUsers, FaFileAlt, FaCheckCircle, FaUserShield } from "react-icons/fa";
 import CreateAccountModal from "./CreateAccountModal";
 import logo from "../assets/eFormX.png";
 import authService from "../services/authService";
 import userService from "../services/userService";
 import { FaSearch } from "react-icons/fa";
 import notificationsService from "../services/notificationsService";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
 
+const COLORS = ['#1a5f6f', '#5a8a96', '#ffbb28', '#ff8042', '#0f4c5c', '#8884d8'];
 
 function SuperAdminDashboard({ onLogout }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [systemStats, setSystemStats] = useState(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
@@ -47,6 +57,16 @@ function SuperAdminDashboard({ onLogout }) {
       }
     };
     loadUsers();
+    // Load system stats
+    const loadStats = async () => {
+      try {
+        const stats = await userService.getSystemStats();
+        setSystemStats(stats);
+      } catch (e) {
+        console.error("Failed to load stats:", e);
+      }
+    };
+    loadStats();
     // Load notifications for Super Admin
     const loadNotifications = async () => {
       try {
@@ -351,6 +371,77 @@ function SuperAdminDashboard({ onLogout }) {
         </div>
 
       </header >
+
+      {/* STATS OVERVIEW */}
+      <div className="sa-stats-container">
+        <div className="stats-section">
+          <h2 className="sa-section-title">System Overview</h2>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon-wrapper users">
+                <FaUsers />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Total Users</span>
+                <span className="stat-value">{systemStats?.metrics?.total_users || 0}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-wrapper forms">
+                <FaFileAlt />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Total Forms</span>
+                <span className="stat-value">{systemStats?.metrics?.total_forms || 0}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-wrapper responses">
+                <FaCheckCircle />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Total Submissions</span>
+                <span className="stat-value">{systemStats?.metrics?.total_responses || 0}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-wrapper admins">
+                <FaUserShield />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Active Admins</span>
+                <span className="stat-value">{systemStats?.metrics?.active_admins || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="stats-charts-section">
+          <h2 className="sa-section-title">User Distribution</h2>
+          <div className="chart-wrapper" style={{ height: 250, width: '100%' }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={systemStats?.distribution || []}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="count"
+                  nameKey="role"
+                >
+                  {(systemStats?.distribution || []).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
 
       {/* TITLE */}
       < div className="page-title" >

@@ -115,16 +115,16 @@ const PublicFormPage = () => {
                 <img src={logo} alt="eFormX Logo" className="public-logo" />
             </div>
 
-            <div className="form-card">
-                <div className="form-info">
+            <div className="public-form-card">
+                <div className="public-form-info">
                     <h1>{form.title}</h1>
-                    {form.description && <p className="form-description">{form.description}</p>}
+                    {form.description && <p className="public-form-description">{form.description}</p>}
                 </div>
 
                 <form onSubmit={handleSubmit} className="public-form">
-                    <div className="form-section">
+                    <div className="public-form-section">
                         <h3>Your Information</h3>
-                        <div className="form-group">
+                        <div className="public-form-group">
                             <label>Full Name *</label>
                             <input
                                 type="text"
@@ -134,7 +134,7 @@ const PublicFormPage = () => {
                                 placeholder="Enter your full name"
                             />
                         </div>
-                        <div className="form-group">
+                        <div className="public-form-group">
                             <label>Email Address *</label>
                             <input
                                 type="email"
@@ -146,7 +146,7 @@ const PublicFormPage = () => {
                         </div>
                     </div>
 
-                    <div className="form-section">
+                    <div className="public-form-section">
                         <h3>Questions</h3>
                         {form.fields && form.fields.map((field, index) => {
                             const key = field.id || field.label;
@@ -156,7 +156,7 @@ const PublicFormPage = () => {
                                 if (field.choiceType === 'radio') {
                                     const current = formData[key] ?? '';
                                     return (
-                                        <div key={index} className="form-group">
+                                        <div key={index} className="public-form-group">
                                             <label>{field.label} {labelReq}</label>
                                             <div className="options-group">
                                                 {options.map((opt, i) => (
