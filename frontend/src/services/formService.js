@@ -15,8 +15,10 @@ const formService = {
      * @param {number} id Form ID
      * @returns {Promise<Object>} Form data (fields only)
      */
-    async getPublicForm(id) {
-        const response = await api.get(`/forms/${id}/public`);
+    async getPublicForm(id, studentId) {
+        const response = await api.get(`/forms/${id}/public`, {
+            params: studentId ? { student_id: studentId } : undefined,
+        });
         return response.data;
     },
 

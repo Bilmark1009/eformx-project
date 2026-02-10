@@ -136,20 +136,25 @@ class FormResponseController extends Controller
         $now = now();
 
         if ($studentId === null) {
-            FormEngagement::create([
-                'form_id' => $form->id,
-                'student_id' => null,
-                'status' => 'submitted',
-                'viewed_at' => $now,
-                'submitted_at' => $now,
-            ]);
-            return;
-        }
+            $engagement = FormEngagement::where('form_id', $form->id)
+                ->whereNull('student_id')
+                ->whereNull('submitted_at')
+                ->latest('id')
+                ->first();
 
-        $engagement = FormEngagement::firstOrNew([
-            'form_id' => $form->id,
-            'student_id' => $studentId,
-        ]);
+            if (!$engagement) {
+                $engagement = new FormEngagement([
+                    'form_id' => $form->id,
+                    'student_id' => null,
+                    'viewed_at' => $now,
+                ]);
+            }
+        } else {
+            $engagement = FormEngagement::firstOrNew([
+                'form_id' => $form->id,
+                'student_id' => $studentId,
+            ]);
+        }
 
         $engagement->viewed_at = $engagement->viewed_at ?: $now;
         $engagement->status = 'submitted';
