@@ -907,15 +907,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
             <div className="analytics-stats-footer">
               <button
                 className="export-csv-btn"
-                onClick={handleExportAnalyticsCSV}
-              >
-                <FaDownload style={{ marginRight: "8px" }} />
-                Export CSV
-              </button>
-              <button
-                className="export-csv-btn"
                 onClick={handleExportAnalyticsXLSX}
-                style={{ marginLeft: 12 }}
               >
                 <FaDownload style={{ marginRight: "8px" }} />
                 Export XLSX

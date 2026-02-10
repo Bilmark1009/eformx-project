@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Form;
+use App\Models\FormEngagement;
 use App\Models\FormResponse;
 use App\Models\User;
 use App\Models\Notification;
@@ -27,6 +28,7 @@ class FormResponseController extends Controller
             'respondent_name' => 'nullable|string|max:255',
             'respondent_email' => 'nullable|email|max:255',
             'responses' => 'required|array',
+            'student_id' => 'nullable|string|max:255',
         ]);
 
         $response = $form->responses()->create($validated);
@@ -107,6 +109,9 @@ class FormResponseController extends Controller
             // swallow notification errors
         }
 
+        // Track submission for response-rate metrics
+        $this->recordSubmission($form, $validated['student_id'] ?? null);
+
         return response()->json([
             'message' => 'Response submitted successfully',
             'response' => $response
@@ -124,5 +129,31 @@ class FormResponseController extends Controller
         $responses = $form->responses()->latest()->get();
 
         return response()->json($responses);
+    }
+
+    private function recordSubmission(Form $form, ?string $studentId): void
+    {
+        $now = now();
+
+        if ($studentId === null) {
+            FormEngagement::create([
+                'form_id' => $form->id,
+                'student_id' => null,
+                'status' => 'submitted',
+                'viewed_at' => $now,
+                'submitted_at' => $now,
+            ]);
+            return;
+        }
+
+        $engagement = FormEngagement::firstOrNew([
+            'form_id' => $form->id,
+            'student_id' => $studentId,
+        ]);
+
+        $engagement->viewed_at = $engagement->viewed_at ?: $now;
+        $engagement->status = 'submitted';
+        $engagement->submitted_at = $now;
+        $engagement->save();
     }
 }
