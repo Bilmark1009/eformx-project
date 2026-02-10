@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\FormEngagement;
 
 class Form extends Model
 {
@@ -35,6 +36,12 @@ class Form extends Model
         return $this->hasMany(FormResponse::class);
     }
 
+    // Relationship to form engagement events (views + submissions)
+    public function engagements()
+    {
+        return $this->hasMany(FormEngagement::class);
+    }
+
     // Computed analytics attribute
     public function getAnalyticsAttribute()
     {
@@ -43,15 +50,34 @@ class Form extends Model
             ->where('created_at', '>=', now()->subHour())
             ->count();
 
-        $recentActivityPercent = 0;
-        if ($totalRespondents > 0) {
-            $recentActivityPercent = round(($recentActivityCount / $totalRespondents) * 100, 2);
+        $totalViews = $this->engagements()->count();
+        $totalSubmissions = $this->engagements()
+            ->where('status', 'submitted')
+            ->count();
+
+        // Fallback to response counts if engagements are not yet populated
+        if ($totalSubmissions === 0 && $totalRespondents > 0) {
+            $totalSubmissions = $totalRespondents;
         }
+        if ($totalViews === 0 && $totalRespondents > 0) {
+            $totalViews = $totalRespondents;
+        }
+
+        $responseRate = $totalViews > 0
+            ? round(($totalSubmissions / $totalViews) * 100, 2)
+            : 0;
+
+        $recentActivityPercent = $totalRespondents > 0
+            ? round(($recentActivityCount / $totalRespondents) * 100, 2)
+            : 0;
 
         return [
             'totalRespondents' => $totalRespondents,
-            'completionRate' => $totalRespondents > 0 ? 100 : 0, // Simplified for now
+            'completionRate' => $responseRate,
             'recentActivity' => $recentActivityPercent,
+            'totalViews' => $totalViews,
+            'totalSubmissions' => $totalSubmissions,
+            'responseRate' => $responseRate,
         ];
     }
 }
