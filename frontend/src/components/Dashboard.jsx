@@ -1070,11 +1070,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 >
                   ←
                 </span>
-                <img
-                  src={logo}
-                  alt="eFormX logo"
-                  className="profile-logo-mark"
-                />
               </div>
 
               <div className="profile-main">
@@ -1178,19 +1173,17 @@ function Dashboard({ onLogout, userEmail, userName }) {
                           <div className="profile-password-panel">
                             <div className="profile-form-group">
                               <label>New password</label>
-                              <div className="profile-password-row">
-                                <input
-                                  type="password"
-                                  className="profile-input profile-password-input"
-                                  value={newPassword}
-                                  onChange={(e) => {
-                                    setNewPassword(e.target.value);
-                                    if (profileNotification.message) setProfileNotification({ type: "", message: "" });
-                                  }}
-                                  placeholder="Enter new password"
-                                  autoComplete="new-password"
-                                />
-                              </div>
+                              <input
+                                type="password"
+                                className="profile-input profile-password-input"
+                                value={newPassword}
+                                onChange={(e) => {
+                                  setNewPassword(e.target.value);
+                                  if (profileNotification.message) setProfileNotification({ type: "", message: "" });
+                                }}
+                                placeholder="Enter new password"
+                                autoComplete="new-password"
+                              />
                               {newPassword.length > 0 && newPassword.length < 6 && (
                                 <div className="profile-field-error">Password must be at least 6 characters.</div>
                               )}
@@ -1198,19 +1191,17 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
                             <div className="profile-form-group">
                               <label>Confirm new password</label>
-                              <div className="profile-password-row">
-                                <input
-                                  type="password"
-                                  className="profile-input profile-password-input"
-                                  value={confirmNewPassword}
-                                  onChange={(e) => {
-                                    setConfirmNewPassword(e.target.value);
-                                    if (profileNotification.message) setProfileNotification({ type: "", message: "" });
-                                  }}
-                                  placeholder="Confirm new password"
-                                  autoComplete="new-password"
-                                />
-                              </div>
+                              <input
+                                type="password"
+                                className="profile-input profile-password-input"
+                                value={confirmNewPassword}
+                                onChange={(e) => {
+                                  setConfirmNewPassword(e.target.value);
+                                  if (profileNotification.message) setProfileNotification({ type: "", message: "" });
+                                }}
+                                placeholder="Confirm new password"
+                                autoComplete="new-password"
+                              />
                               {confirmNewPassword.length > 0 && newPassword !== confirmNewPassword && (
                                 <div className="profile-field-error">Passwords do not match.</div>
                               )}
@@ -1240,8 +1231,9 @@ function Dashboard({ onLogout, userEmail, userName }) {
             </div>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }
 

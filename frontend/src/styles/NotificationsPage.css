@@ -38,7 +38,7 @@
   letter-spacing: -0.5px;
 }
 
-.note-subtitle {
+.notifications-page .note-subtitle {
   font-size: 14px;
   color: var(--text-secondary);
   margin-top: 4px;
@@ -50,7 +50,7 @@
   gap: 12px;
 }
 
-.btn-link {
+.notifications-page .btn-link {
   background: transparent;
   border: 1px solid #e2e8f0;
   color: var(--primary-teal);
@@ -72,7 +72,7 @@
   color: var(--teal-dark);
 }
 
-.btn-danger {
+.notifications-page .btn-danger {
   background: transparent;
   border: 1px solid #fee2e2;
   color: #ef4444;
@@ -144,7 +144,7 @@
   padding-top: 12px;
 }
 
-.note-type {
+.notifications-page .note-type {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -160,8 +160,8 @@
   gap: 8px;
 }
 
-.note-muted,
-.note-error {
+.notifications-page .note-muted,
+.notifications-page .note-error {
   text-align: center;
   padding: 48px;
   background: #fff;
@@ -171,7 +171,7 @@
   font-size: 16px;
 }
 
-.note-error {
+.notifications-page .note-error {
   color: #ef4444;
   border-color: #fee2e2;
   background: #fef2f2;
