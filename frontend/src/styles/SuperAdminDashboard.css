@@ -248,15 +248,20 @@
 
   .stat-card {
     padding: 16px;
-    justify-content: flex-start;
-    /* Align content to start */
+    flex-direction: row !important;
+    /* Force row layout */
+    justify-content: flex-start !important;
+    align-items: center !important;
+    /* Center vertically in the row */
     gap: 16px;
   }
 
   /* Override center alignment from desktop if needed */
   .stat-info {
-    align-items: flex-start;
-    text-align: left;
+    align-items: flex-start !important;
+    text-align: left !important;
+    justify-content: center !important;
+    width: auto;
   }
 }
 
