@@ -1,8 +1,13 @@
 .public-form-container {
     min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     background-color: #f8f9fa;
     padding: 40px 20px;
     font-family: 'Inter', sans-serif;
+    position: relative;
+    display: flex;
+    flex-direction: column;
     /* Admin Theme Variables */
     --primary-teal: #1a5f6f;
     --teal-dark: #0f4c5c;
@@ -18,29 +23,31 @@
     height: 40px;
 }
 
-.form-card {
+.public-form-card {
     max-width: 800px;
+    width: 100%;
     margin: 0 auto;
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    overflow: hidden;
+    overflow: visible;
+    /* Changed from hidden to avoid clipping issues */
 }
 
-.form-info {
+.public-form-info {
     padding: 40px;
     background: linear-gradient(135deg, var(--teal-light) 0%, var(--primary-teal) 100%);
     color: white;
 }
 
-.form-info h1 {
+.public-form-info h1 {
     margin: 0;
     font-size: 28px;
     font-weight: 700;
     color: #ffffff;
 }
 
-.form-description {
+.public-form-description {
     margin: 12px 0 0;
     opacity: 0.95;
     font-size: 16px;
@@ -52,11 +59,11 @@
     padding: 40px;
 }
 
-.form-section {
+.public-form-section {
     margin-bottom: 35px;
 }
 
-.form-section h3 {
+.public-form-section h3 {
     font-size: 18px;
     color: #111827;
     font-weight: 600;
@@ -65,11 +72,11 @@
     border-bottom: 2px solid #e5e7eb;
 }
 
-.form-group {
+.public-form-group {
     margin-bottom: 24px;
 }
 
-.form-group label {
+.public-form-group label {
     display: block;
     margin-bottom: 8px;
     font-weight: 600;
@@ -77,9 +84,9 @@
     font-size: 14px;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
+.public-form-group input,
+.public-form-group select,
+.public-form-group textarea {
     width: 100%;
     padding: 12px 14px;
     border: 2px solid #d1d5db;
@@ -90,20 +97,20 @@
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-group input::placeholder,
-.form-group textarea::placeholder {
+.public-form-group input::placeholder,
+.public-form-group textarea::placeholder {
     color: #9ca3af;
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.public-form-group input:focus,
+.public-form-group select:focus,
+.public-form-group textarea:focus {
     outline: none;
     border-color: var(--primary-teal);
     box-shadow: 0 0 0 3px rgba(26, 95, 111, 0.1);
 }
 
-.form-group textarea {
+.public-form-group textarea {
     min-height: 100px;
     resize: vertical;
     font-family: inherit;
@@ -147,6 +154,8 @@
     font-size: 15px;
     color: #374151;
     line-height: 1.4;
+    user-select: none;
+    /* Prevents text selection on mobile when tapping */
 }
 
 .submit-btn {
@@ -263,15 +272,15 @@
         height: 32px;
     }
 
-    .form-info {
+    .public-form-info {
         padding: 28px 24px;
     }
 
-    .form-info h1 {
+    .public-form-info h1 {
         font-size: 24px;
     }
 
-    .form-description {
+    .public-form-description {
         font-size: 14px;
     }
 
@@ -279,13 +288,13 @@
         padding: 28px 24px;
     }
 
-    .form-section h3 {
+    .public-form-section h3 {
         font-size: 16px;
     }
 
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
+    .public-form-group input,
+    .public-form-group select,
+    .public-form-group textarea {
         font-size: 16px;
         /* Prevents zoom on iOS */
     }
@@ -305,15 +314,15 @@
         height: 28px;
     }
 
-    .form-info {
+    .public-form-info {
         padding: 24px 20px;
     }
 
-    .form-info h1 {
+    .public-form-info h1 {
         font-size: 20px;
     }
 
-    .form-description {
+    .public-form-description {
         font-size: 13px;
     }
 
@@ -321,21 +330,21 @@
         padding: 24px 20px;
     }
 
-    .form-section h3 {
+    .public-form-section h3 {
         font-size: 15px;
     }
 
-    .form-group {
+    .public-form-group {
         margin-bottom: 20px;
     }
 
-    .form-group label {
+    .public-form-group label {
         font-size: 13px;
     }
 
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
+    .public-form-group input,
+    .public-form-group select,
+    .public-form-group textarea {
         padding: 10px 12px;
         font-size: 16px;
     }
