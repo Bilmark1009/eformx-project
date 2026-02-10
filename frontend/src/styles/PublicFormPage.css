@@ -138,6 +138,9 @@
     cursor: pointer;
     accent-color: var(--primary-teal);
     flex-shrink: 0;
+    margin-right: 10px;
+    margin-top: 0;
+    vertical-align: middle;
 }
 
 .option-item span {
