@@ -43,17 +43,27 @@ class Form extends Model
     // Computed analytics attribute
     public function getAnalyticsAttribute()
     {
-        $totalAttempts = $this->attempts()->count();
-        $completedAttempts = $this->attempts()->where('status', 'completed')->count();
-        $abandonedAttempts = $this->attempts()->where('status', 'abandoned')->count();
-        $recentActivity = $this->attempts()->where('created_at', '>=', now()->subDays(7))->count();
+        $attemptCounts = $this->attempts()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $completedAttempts = $attemptCounts['completed'] ?? 0;
+        $abandonedAttempts = $attemptCounts['abandoned'] ?? 0;
+        $startedAttempts = $attemptCounts['started'] ?? 0;
+        $trackedAttempts = $completedAttempts + $abandonedAttempts;
+
+        $recentActivity = $this->attempts()
+            ->where('created_at', '>=', now()->subDays(7))
+            ->count();
 
         return [
             'totalRespondents' => $completedAttempts,
-            'completionRate' => $totalAttempts > 0 ? round(($completedAttempts / $totalAttempts) * 100, 1) : 0,
+            'completionRate' => $trackedAttempts > 0 ? round(($completedAttempts / $trackedAttempts) * 100, 1) : 0,
             'recentActivity' => $recentActivity,
-            'totalAttempts' => $totalAttempts,
+            'totalAttempts' => $completedAttempts + $abandonedAttempts + $startedAttempts,
             'abandonedAttempts' => $abandonedAttempts,
+            'activeStartedAttempts' => $startedAttempts,
         ];
     }
 }
