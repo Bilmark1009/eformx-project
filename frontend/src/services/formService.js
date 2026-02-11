@@ -15,8 +15,10 @@ const formService = {
      * @param {number} id Form ID
      * @returns {Promise<Object>} Form data (fields only)
      */
-    async getPublicForm(id) {
-        const response = await api.get(`/forms/${id}/public`);
+    async getPublicForm(id, studentId) {
+        const response = await api.get(`/forms/${id}/public`, {
+            params: studentId ? { student_id: studentId } : undefined,
+        });
         return response.data;
     },
 
@@ -98,6 +100,15 @@ const formService = {
     async submitResponse(formId, responseData) {
         const response = await api.post(`/forms/${formId}/responses`, responseData);
         return response.data;
+    },
+
+    async startFormAttempt(formId) {
+        const response = await api.post(`/forms/${formId}/attempts`);
+        return response.data;
+    },
+
+    async updateFormAttemptStatus(attemptId, status) {
+        return api.post(`/forms/attempts/${attemptId}/status`, { status });
     },
 };
 
