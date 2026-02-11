@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import formService from '../services/formService';
+import api from '../services/api';
 import '../styles/PublicFormPage.css';
 import logo from '../assets/eFormX.png';
+
+const attemptCreationPromises = new Map();
 
 const PublicFormPage = () => {
     const { id } = useParams();
@@ -12,15 +15,189 @@ const PublicFormPage = () => {
     const [error, setError] = useState('');
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    // studentId logic removed due to ESLint no-undef error
 
     const [hasNameField, setHasNameField] = useState(false);
     const [hasEmailField, setHasEmailField] = useState(false);
+    const attemptIdRef = useRef(null);
+    const hasSubmittedRef = useRef(false);
+    const sessionKeyRef = useRef(null);
+    const reloadGuardKeyRef = useRef(null);
+    const hasInteractedRef = useRef(false);
+
+    const loadAttemptFromSession = (formId) => {
+        const key = `form_attempt_${formId}`;
+        sessionKeyRef.current = key;
+        try {
+            const raw = sessionStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.attemptId) {
+                return parsed.attemptId;
+            }
+        } catch (e) {
+            console.warn('Failed to parse stored attempt id', e);
+        }
+        return null;
+    };
+
+    const storeAttemptInSession = (attemptId) => {
+        if (!sessionKeyRef.current) return;
+        try {
+            sessionStorage.setItem(sessionKeyRef.current, JSON.stringify({ attemptId }));
+        } catch (e) {
+            console.warn('Failed to persist attempt id', e);
+        }
+    };
+
+    const clearAttemptFromSession = () => {
+        if (sessionKeyRef.current) {
+            sessionStorage.removeItem(sessionKeyRef.current);
+        }
+        attemptIdRef.current = null;
+        hasInteractedRef.current = false;
+    };
+
+    const setReloadGuard = () => {
+        if (!reloadGuardKeyRef.current) return;
+        try {
+            sessionStorage.setItem(reloadGuardKeyRef.current, '1');
+        } catch (e) {
+            // swallow
+        }
+    };
+
+    const clearReloadGuard = () => {
+        if (!reloadGuardKeyRef.current) return;
+        try {
+            sessionStorage.removeItem(reloadGuardKeyRef.current);
+        } catch (e) {
+            // swallow
+        }
+    };
+
+    const ensureAttemptForForm = async (formId) => {
+        const storedAttemptId = loadAttemptFromSession(formId);
+        if (storedAttemptId) {
+            attemptIdRef.current = storedAttemptId;
+            return storedAttemptId;
+        }
+
+        if (attemptCreationPromises.has(formId)) {
+            const existingPromise = attemptCreationPromises.get(formId);
+            const attemptId = await existingPromise;
+            attemptIdRef.current = attemptId;
+            return attemptId;
+        }
+
+        const creationPromise = (async () => {
+            const attempt = await formService.startFormAttempt(formId);
+            storeAttemptInSession(attempt.attempt_id);
+            return attempt.attempt_id;
+        })();
+
+        attemptCreationPromises.set(formId, creationPromise);
+
+        try {
+            const attemptId = await creationPromise;
+            attemptIdRef.current = attemptId;
+            return attemptId;
+        } finally {
+            attemptCreationPromises.delete(formId);
+        }
+    };
+
+    const ensureAttemptAfterInteraction = () => {
+        if (!form?.id) {
+            return;
+        }
+
+        if (attemptIdRef.current) {
+            hasInteractedRef.current = true;
+            return;
+        }
+
+        hasInteractedRef.current = true;
+        ensureAttemptForForm(form.id).catch((err) => {
+            console.error('Failed to ensure attempt after interaction:', err);
+        });
+    };
+
+    const handleFormInteraction = () => {
+        ensureAttemptAfterInteraction();
+    };
+
+    const isReloadNavigation = () => {
+        const navEntries = performance.getEntriesByType('navigation');
+        if (!navEntries || navEntries.length === 0) return false;
+        return navEntries[0].type === 'reload';
+    };
+
+    const sendAbandonmentBeacon = () => {
+        if (!attemptIdRef.current || hasSubmittedRef.current) {
+            return;
+        }
+
+        // Avoid marking as abandoned on reloads; we keep the attempt alive for the session.
+        if (isReloadNavigation()) {
+            setTimeout(clearReloadGuard, 0);
+            return;
+        }
+
+        // Also skip if a reload guard was set during beforeunload (persists across reloads in sessionStorage).
+        if (reloadGuardKeyRef.current && sessionStorage.getItem(reloadGuardKeyRef.current)) {
+            setTimeout(clearReloadGuard, 0);
+            return;
+        }
+
+        const baseUrl = (api.defaults?.baseURL || process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
+        if (!baseUrl) {
+            return;
+        }
+
+        const url = `${baseUrl}/forms/attempts/${attemptIdRef.current}/status`;
+
+        const payload = new FormData();
+        payload.append('status', 'abandoned');
+
+        // Prefer sendBeacon with FormData; if unavailable or fails, fall back to fetch with keepalive.
+        try {
+            if (navigator.sendBeacon) {
+                const ok = navigator.sendBeacon(url, payload);
+                if (ok) return;
+            }
+        } catch (e) {
+            // fall through to fetch
+        }
+
+        try {
+            fetch(url, {
+                method: 'POST',
+                body: payload,
+                keepalive: true,
+                credentials: 'include',
+            }).catch(() => {});
+        } catch (e) {
+            // swallow
+        }
+
+        setTimeout(clearReloadGuard, 0);
+    };
 
     useEffect(() => {
         const fetchForm = async () => {
             try {
                 const data = await formService.getPublicForm(id);
                 setForm(data);
+
+                reloadGuardKeyRef.current = `form_attempt_reload_${data.id}`;
+                clearReloadGuard();
+
+                const storedAttemptId = loadAttemptFromSession(data.id);
+                if (storedAttemptId) {
+                    attemptIdRef.current = storedAttemptId;
+                    hasInteractedRef.current = true;
+                }
 
                 // Detect if Name or Email fields exist in questions
                 let nameFieldExists = false;
@@ -63,7 +240,30 @@ const PublicFormPage = () => {
         fetchForm();
     }, [id]);
 
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            setReloadGuard();
+            sendAbandonmentBeacon();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                sendAbandonmentBeacon();
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            sendAbandonmentBeacon();
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
     const handleInputChange = (fieldId, value) => {
+        handleFormInteraction();
         setFormData(prev => ({
             ...prev,
             [fieldId]: value
@@ -74,6 +274,14 @@ const PublicFormPage = () => {
         e.preventDefault();
         setSubmitting(true);
         setError('');
+
+        if (!attemptIdRef.current && form?.id) {
+            try {
+                await ensureAttemptForForm(form.id);
+            } catch (attemptError) {
+                console.error('Failed to ensure attempt before submit:', attemptError);
+            }
+        }
 
         try {
             // Prepare submission data
@@ -104,7 +312,20 @@ const PublicFormPage = () => {
             delete submission.responses.respondent_name;
             delete submission.responses.respondent_email;
 
+            if (attemptIdRef.current) {
+                submission.attempt_id = attemptIdRef.current;
+            }
+
             await formService.submitResponse(id, submission);
+            hasSubmittedRef.current = true;
+            if (attemptIdRef.current) {
+                try {
+                    await formService.updateFormAttemptStatus(attemptIdRef.current, 'completed');
+                } catch (statusError) {
+                    console.error('Failed to mark attempt as completed:', statusError);
+                }
+            }
+            clearAttemptFromSession();
             setSubmitted(true);
         } catch (err) {
             console.error('Error submitting form:', err);
@@ -157,7 +378,7 @@ const PublicFormPage = () => {
                     {form.description && <p className="public-form-description">{form.description}</p>}
                 </div>
 
-                <form onSubmit={handleSubmit} className="public-form">
+                <form onSubmit={handleSubmit} className="public-form" onFocusCapture={handleFormInteraction}>
                     {showInfoSection && (
                         <div className="public-form-section">
                             <h3>Your Information</h3>
