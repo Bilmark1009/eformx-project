@@ -99,6 +99,15 @@ const formService = {
         const response = await api.post(`/forms/${formId}/responses`, responseData);
         return response.data;
     },
+
+    async startFormAttempt(formId) {
+        const response = await api.post(`/forms/${formId}/attempts`);
+        return response.data;
+    },
+
+    async updateFormAttemptStatus(attemptId, status) {
+        return api.post(`/forms/attempts/${attemptId}/status`, { status });
+    },
 };
 
 export default formService;

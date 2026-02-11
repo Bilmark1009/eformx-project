@@ -35,16 +35,25 @@ class Form extends Model
         return $this->hasMany(FormResponse::class);
     }
 
+    public function attempts()
+    {
+        return $this->hasMany(FormAttempt::class);
+    }
+
     // Computed analytics attribute
     public function getAnalyticsAttribute()
     {
-        $totalRespondents = $this->responses()->count();
-        $recentActivity = $this->responses()->where('created_at', '>=', now()->subDays(7))->count();
+        $totalAttempts = $this->attempts()->count();
+        $completedAttempts = $this->attempts()->where('status', 'completed')->count();
+        $abandonedAttempts = $this->attempts()->where('status', 'abandoned')->count();
+        $recentActivity = $this->attempts()->where('created_at', '>=', now()->subDays(7))->count();
 
         return [
-            'totalRespondents' => $totalRespondents,
-            'completionRate' => $totalRespondents > 0 ? 100 : 0, // Simplified for now
+            'totalRespondents' => $completedAttempts,
+            'completionRate' => $totalAttempts > 0 ? round(($completedAttempts / $totalAttempts) * 100, 1) : 0,
             'recentActivity' => $recentActivity,
+            'totalAttempts' => $totalAttempts,
+            'abandonedAttempts' => $abandonedAttempts,
         ];
     }
 }

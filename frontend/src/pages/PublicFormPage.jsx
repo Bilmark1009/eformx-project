@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import formService from '../services/formService';
+import api from '../services/api';
 import '../styles/PublicFormPage.css';
 import logo from '../assets/eFormX.png';
+
+const attemptCreationPromises = new Map();
 
 const PublicFormPage = () => {
     const { id } = useParams();
@@ -15,12 +18,109 @@ const PublicFormPage = () => {
 
     const [hasNameField, setHasNameField] = useState(false);
     const [hasEmailField, setHasEmailField] = useState(false);
+    const attemptIdRef = useRef(null);
+    const hasSubmittedRef = useRef(false);
+    const sessionKeyRef = useRef(null);
+
+    const loadAttemptFromSession = (formId) => {
+        const key = `form_attempt_${formId}`;
+        sessionKeyRef.current = key;
+        try {
+            const raw = sessionStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.attemptId) {
+                return parsed.attemptId;
+            }
+        } catch (e) {
+            console.warn('Failed to parse stored attempt id', e);
+        }
+        return null;
+    };
+
+    const storeAttemptInSession = (attemptId) => {
+        if (!sessionKeyRef.current) return;
+        try {
+            sessionStorage.setItem(sessionKeyRef.current, JSON.stringify({ attemptId }));
+        } catch (e) {
+            console.warn('Failed to persist attempt id', e);
+        }
+    };
+
+    const clearAttemptFromSession = () => {
+        if (!sessionKeyRef.current) return;
+        sessionStorage.removeItem(sessionKeyRef.current);
+    };
+
+    const ensureAttemptForForm = async (formId) => {
+        const storedAttemptId = loadAttemptFromSession(formId);
+        if (storedAttemptId) {
+            attemptIdRef.current = storedAttemptId;
+            return storedAttemptId;
+        }
+
+        if (attemptCreationPromises.has(formId)) {
+            const existingPromise = attemptCreationPromises.get(formId);
+            const attemptId = await existingPromise;
+            attemptIdRef.current = attemptId;
+            return attemptId;
+        }
+
+        const creationPromise = (async () => {
+            const attempt = await formService.startFormAttempt(formId);
+            storeAttemptInSession(attempt.attempt_id);
+            return attempt.attempt_id;
+        })();
+
+        attemptCreationPromises.set(formId, creationPromise);
+
+        try {
+            const attemptId = await creationPromise;
+            attemptIdRef.current = attemptId;
+            return attemptId;
+        } finally {
+            attemptCreationPromises.delete(formId);
+        }
+    };
+
+    const isReloadNavigation = () => {
+        const navEntries = performance.getEntriesByType('navigation');
+        if (!navEntries || navEntries.length === 0) return false;
+        return navEntries[0].type === 'reload';
+    };
+
+    const sendAbandonmentBeacon = () => {
+        if (!attemptIdRef.current || hasSubmittedRef.current || !navigator.sendBeacon) {
+            return;
+        }
+
+        // Avoid marking as abandoned on reloads; we keep the attempt alive for the session.
+        if (isReloadNavigation()) {
+            return;
+        }
+
+        const baseUrl = (api.defaults?.baseURL || process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
+        if (!baseUrl) {
+            return;
+        }
+
+        const url = `${baseUrl}/forms/attempts/${attemptIdRef.current}/status`;
+        const payload = JSON.stringify({ status: 'abandoned' });
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon(url, blob);
+    };
 
     useEffect(() => {
         const fetchForm = async () => {
             try {
                 const data = await formService.getPublicForm(id);
                 setForm(data);
+
+                try {
+                    await ensureAttemptForForm(data.id);
+                } catch (attemptError) {
+                    console.error('Failed to start form attempt:', attemptError);
+                }
 
                 // Detect if Name or Email fields exist in questions
                 let nameFieldExists = false;
@@ -63,6 +163,27 @@ const PublicFormPage = () => {
         fetchForm();
     }, [id]);
 
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            sendAbandonmentBeacon();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                sendAbandonmentBeacon();
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            sendAbandonmentBeacon();
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
     const handleInputChange = (fieldId, value) => {
         setFormData(prev => ({
             ...prev,
@@ -104,7 +225,20 @@ const PublicFormPage = () => {
             delete submission.responses.respondent_name;
             delete submission.responses.respondent_email;
 
+            if (attemptIdRef.current) {
+                submission.attempt_id = attemptIdRef.current;
+            }
+
             await formService.submitResponse(id, submission);
+            hasSubmittedRef.current = true;
+            if (attemptIdRef.current) {
+                try {
+                    await formService.updateFormAttemptStatus(attemptIdRef.current, 'completed');
+                } catch (statusError) {
+                    console.error('Failed to mark attempt as completed:', statusError);
+                }
+            }
+            clearAttemptFromSession();
             setSubmitted(true);
         } catch (err) {
             console.error('Error submitting form:', err);
