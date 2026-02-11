@@ -11,9 +11,48 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
+use App\Models\Form;
+use App\Models\FormResponse;
 
 class SuperAdminController extends Controller
 {
+    /**
+     * Display system-wide stats for super admins.
+     */
+    public function stats(Request $request)
+    {
+        // Only SuperAdmin can view system stats
+        if (!($request->user() instanceof SuperAdmin)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $totalRegularUsers = User::count();
+        $totalSuperAdmins = SuperAdmin::count();
+        $totalForms = Form::count();
+        $totalResponses = FormResponse::count();
+
+        // Role distribution
+        $roleDistribution = User::select('role', \DB::raw('count(*) as count'))
+            ->groupBy('role')
+            ->get();
+
+        // Add SuperAdmins to role distribution for a complete picture
+        $roleDistribution->push((object) [
+            'role' => 'Super Admin',
+            'count' => $totalSuperAdmins
+        ]);
+
+        return response()->json([
+            'metrics' => [
+                'total_users' => $totalRegularUsers + $totalSuperAdmins,
+                'total_forms' => $totalForms,
+                'total_responses' => $totalResponses,
+                'active_admins' => SuperAdmin::where('status', 'Active')->count(),
+            ],
+            'distribution' => $roleDistribution
+        ]);
+    }
+
     /**
      * Display a listing of super admins.
      */
@@ -30,7 +69,7 @@ class SuperAdminController extends Controller
                 'name' => $a->name,
                 'email' => $a->email,
                 'role' => 'Super Admin',
-                'status' => 'Active',
+                'status' => $a->status ?? 'Active',
             ];
         });
 
@@ -51,6 +90,7 @@ class SuperAdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:super_admins,email',
             'password' => 'required|string|min:6',
+            'status' => 'nullable|in:Active,Inactive',
         ]);
 
         // Prevent creating a SuperAdmin when a regular user with same email exists
@@ -60,6 +100,10 @@ class SuperAdminController extends Controller
 
         $rawPassword = $validated['password'];
         $validated['password'] = Hash::make($rawPassword);
+
+        if (!isset($validated['status'])) {
+            $validated['status'] = 'Active';
+        }
 
         $admin = SuperAdmin::create($validated);
 
@@ -92,7 +136,7 @@ class SuperAdminController extends Controller
             'name' => $admin->name,
             'email' => $admin->email,
             'role' => 'Super Admin',
-            'status' => 'Active',
+            'status' => $admin->status,
         ], 201);
     }
 
@@ -108,11 +152,14 @@ class SuperAdminController extends Controller
 
         $admin = SuperAdmin::findOrFail($id);
 
+        $previousStatus = $admin->status ?? 'Active';
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', 'unique:super_admins,email,' . $admin->id],
             'password' => 'sometimes|nullable|string|min:6',
             'role' => 'nullable|string|max:50',
+            'status' => 'nullable|in:Active,Inactive',
         ]);
 
         // If role is changing to Admin/User, convert account to users table
@@ -128,7 +175,7 @@ class SuperAdminController extends Controller
                     ? \Illuminate\Support\Facades\Hash::make($validated['password'])
                     : $admin->password,
                 'role' => $validated['role'] ?? 'Admin',
-                'status' => 'Active',
+                'status' => $validated['status'] ?? ($existingUser?->status ?? $admin->status ?? 'Active'),
             ];
 
             if ($existingUser) {
@@ -152,14 +199,31 @@ class SuperAdminController extends Controller
             $admin->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
         }
 
+        if (isset($validated['status'])) {
+            $admin->status = $validated['status'];
+            if (strcasecmp($validated['status'], 'Inactive') === 0) {
+                $admin->tokens()->delete();
+            }
+        }
+
         $admin->save();
+
+        if (array_key_exists('status', $validated) && strcasecmp($validated['status'], $previousStatus) !== 0) {
+            $action = strcasecmp($validated['status'], 'Inactive') === 0 ? 'deactivated' : 'reactivated';
+            Notification::create([
+                'title' => 'Super Admin Account ' . ucfirst($action),
+                'message' => 'Super Admin account ' . $action . ': ' . ($admin->email ?? ''),
+                'type' => 'info',
+                'recipient_admin_id' => $request->user()->id,
+            ]);
+        }
 
         return response()->json([
             'id' => $admin->id,
             'name' => $admin->name,
             'email' => $admin->email,
             'role' => 'Super Admin',
-            'status' => 'Active',
+            'status' => $admin->status ?? 'Active',
         ]);
     }
 

@@ -18,8 +18,8 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
-    'sendinblue' => [
-        'key' => env('BREVO_API_KEY'),
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
     ],
 
     'ses' => [
@@ -33,6 +33,11 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    // ✅ Correctly placed at the root level so AppServiceProvider can find it
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
     ],
 
 ];

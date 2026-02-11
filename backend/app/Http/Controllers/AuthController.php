@@ -1,5 +1,6 @@
 <?php
 
+
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -25,6 +26,9 @@ class AuthController extends Controller
 
         if ($admin) {
             if (Hash::check($request->password, $admin->password)) {
+                if (isset($admin->status) && strcasecmp($admin->status, 'Active') !== 0) {
+                    return response()->json(['message' => 'Account is inactive. Please contact an administrator.'], 403);
+                }
                 // Create Sanctum token for SuperAdmin
                 $token = $admin->createToken('auth-token')->plainTextToken;
 

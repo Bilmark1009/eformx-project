@@ -18,16 +18,27 @@ Route::post('/forms/{formId}/responses', [FormResponseController::class, 'store'
 // Diagnostic route - Test Email
 Route::get('/test-mail', function () {
     try {
-        \Illuminate\Support\Facades\Mail::raw('Test connection from EFormX', function ($message) {
-            $message->to('eformxdetails@gmail.com')
-                ->from('eformxdetails@gmail.com', 'EFormX')
+        $to = request('to', env('MAIL_FROM_ADDRESS', 'eformxdetails@gmail.com'));
+        $fromEmail = config('mail.from.address');
+        $fromName = config('mail.from.name');
+
+        \Illuminate\Support\Facades\Mail::raw('Test connection from EFormX. If you see this, your configuration is working!', function ($message) use ($to, $fromEmail, $fromName) {
+            $message->to($to)
+                ->from($fromEmail, $fromName)
                 ->subject('SMTP Diagnostic Test');
         });
-        return response()->json(['message' => 'Email sent successfully! Your configuration is correct.']);
+        return response()->json([
+            'message' => 'Email sent successfully!',
+            'recipient' => $to,
+            'sender' => $fromEmail,
+            'configuration' => config('mail.default')
+        ]);
     } catch (\Throwable $e) {
         return response()->json([
             'message' => 'Email failed to send.',
             'error' => $e->getMessage(),
+            'mailer' => config('mail.default'),
+            'sender' => config('mail.from.address'),
             'trace' => substr($e->getTraceAsString(), 0, 500)
         ], 500);
     }
@@ -61,4 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::delete('/notifications', [NotificationController::class, 'destroyAll']);
+
+    // System Stats for SuperAdmin
+    Route::get('/super-admin/stats', [SuperAdminController::class, 'stats']);
 });

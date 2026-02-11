@@ -13,11 +13,28 @@ const PublicFormPage = () => {
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
+    const [hasNameField, setHasNameField] = useState(false);
+    const [hasEmailField, setHasEmailField] = useState(false);
+
     useEffect(() => {
         const fetchForm = async () => {
             try {
                 const data = await formService.getPublicForm(id);
                 setForm(data);
+
+                // Detect if Name or Email fields exist in questions
+                let nameFieldExists = false;
+                let emailFieldExists = false;
+
+                if (data.fields && Array.isArray(data.fields)) {
+                    data.fields.forEach(field => {
+                        const label = field.label?.toLowerCase().trim();
+                        if (label === 'full name' || label === 'name') nameFieldExists = true;
+                        if (label === 'email address' || label === 'email') emailFieldExists = true;
+                    });
+                }
+                setHasNameField(nameFieldExists);
+                setHasEmailField(emailFieldExists);
 
                 // Initialize form data with empty strings for all fields
                 const initialData = {
@@ -60,9 +77,26 @@ const PublicFormPage = () => {
 
         try {
             // Prepare submission data
+            let finalRespondentName = formData.respondent_name;
+            let finalRespondentEmail = formData.respondent_email;
+
+            // If we have redundant fields, use their values for the required respondent info
+            if (form.fields && Array.isArray(form.fields)) {
+                form.fields.forEach(field => {
+                    const label = field.label?.toLowerCase().trim();
+                    const key = field.id || field.label;
+                    if ((label === 'full name' || label === 'name') && !finalRespondentName) {
+                        finalRespondentName = formData[key];
+                    }
+                    if ((label === 'email address' || label === 'email') && !finalRespondentEmail) {
+                        finalRespondentEmail = formData[key];
+                    }
+                });
+            }
+
             const submission = {
-                respondent_name: formData.respondent_name,
-                respondent_email: formData.respondent_email,
+                respondent_name: finalRespondentName,
+                respondent_email: finalRespondentEmail,
                 responses: { ...formData }
             };
 
@@ -109,44 +143,52 @@ const PublicFormPage = () => {
         );
     }
 
+    const showInfoSection = !hasNameField || !hasEmailField;
+
     return (
         <div className="public-form-container">
             <div className="public-form-header">
                 <img src={logo} alt="eFormX Logo" className="public-logo" />
             </div>
 
-            <div className="form-card">
-                <div className="form-info">
+            <div className="public-form-card">
+                <div className="public-form-info">
                     <h1>{form.title}</h1>
-                    {form.description && <p className="form-description">{form.description}</p>}
+                    {form.description && <p className="public-form-description">{form.description}</p>}
                 </div>
 
                 <form onSubmit={handleSubmit} className="public-form">
-                    <div className="form-section">
-                        <h3>Your Information</h3>
-                        <div className="form-group">
-                            <label>Full Name *</label>
-                            <input
-                                type="text"
-                                required
-                                value={formData.respondent_name}
-                                onChange={(e) => handleInputChange('respondent_name', e.target.value)}
-                                placeholder="Enter your full name"
-                            />
+                    {showInfoSection && (
+                        <div className="public-form-section">
+                            <h3>Your Information</h3>
+                            {!hasNameField && (
+                                <div className="public-form-group">
+                                    <label>Full Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.respondent_name}
+                                        onChange={(e) => handleInputChange('respondent_name', e.target.value)}
+                                        placeholder="Enter your full name"
+                                    />
+                                </div>
+                            )}
+                            {!hasEmailField && (
+                                <div className="public-form-group">
+                                    <label>Email Address *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={formData.respondent_email}
+                                        onChange={(e) => handleInputChange('respondent_email', e.target.value)}
+                                        placeholder="Enter your email"
+                                    />
+                                </div>
+                            )}
                         </div>
-                        <div className="form-group">
-                            <label>Email Address *</label>
-                            <input
-                                type="email"
-                                required
-                                value={formData.respondent_email}
-                                onChange={(e) => handleInputChange('respondent_email', e.target.value)}
-                                placeholder="Enter your email"
-                            />
-                        </div>
-                    </div>
+                    )}
 
-                    <div className="form-section">
+                    <div className="public-form-section">
                         <h3>Questions</h3>
                         {form.fields && form.fields.map((field, index) => {
                             const key = field.id || field.label;
@@ -156,7 +198,7 @@ const PublicFormPage = () => {
                                 if (field.choiceType === 'radio') {
                                     const current = formData[key] ?? '';
                                     return (
-                                        <div key={index} className="form-group">
+                                        <div key={index} className="public-form-group">
                                             <label>{field.label} {labelReq}</label>
                                             <div className="options-group">
                                                 {options.map((opt, i) => (
@@ -184,7 +226,7 @@ const PublicFormPage = () => {
                                     handleInputChange(key, next);
                                 };
                                 return (
-                                    <div key={index} className="form-group">
+                                    <div key={index} className="public-form-group">
                                         <label>{field.label} {labelReq}</label>
                                         <div className="options-group">
                                             {options.map((opt, i) => (
@@ -206,7 +248,7 @@ const PublicFormPage = () => {
 
                             // Non-multiple-choice inputs
                             return (
-                                <div key={index} className="form-group">
+                                <div key={index} className="public-form-group">
                                     <label>{field.label} {labelReq}</label>
                                     {field.type === 'textarea' ? (
                                         <textarea

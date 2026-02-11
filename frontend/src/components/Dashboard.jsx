@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-import CreateFormModal from "./Createformmodal";
-import logo from "../assets/eFormX.png";
+
 import headerLogo from "../assets/logoforheader.png";
 import formService from "../services/formService";
 import notificationsService from "../services/notificationsService";
+import NotificationDropdown from "./NotificationDropdown";
+import AnalyticsCharts from "./AnalyticsCharts";
 import authService from "../services/authService";
 import {
   FaBell,
@@ -30,9 +31,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [formToEdit, setFormToEdit] = useState(null);
+
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareLink, setShareLink] = useState("");
@@ -137,44 +136,15 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   // ===== MODAL HANDLERS =====
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setIsEditMode(false);
-    setFormToEdit(null);
-  };
+  const openModal = () => navigate("/builder");
+
 
   // ===== CREATE / UPDATE =====
-  const handleCreateForm = async (formData) => {
-    try {
-      if (isEditMode) {
-        const updated = await formService.updateForm(formToEdit.id, {
-          ...formData,
-          status: formToEdit.status // Maintain current status on edit
-        });
-        console.log('Updated form data:', updated);
-        setForms(forms.map((f) => (f.id === updated.id ? updated : f)));
-      } else {
-        const created = await formService.createForm({
-          ...formData,
-          status: 'active' // Default status
-        });
-        console.log('Created form data:', created);
-        setForms([created, ...forms]);
-      }
-      closeModal();
-    } catch (err) {
-      console.error("Failed to save form:", err);
-      alert("Failed to save form. Please try again.");
-    }
-  };
+
 
   // ===== EDIT =====
   const handleEditForm = (formId) => {
-    const selected = forms.find((f) => f.id === formId);
-    setFormToEdit(selected);
-    setIsEditMode(true);
-    setIsModalOpen(true);
+    navigate(`/builder/${formId}`);
   };
 
   // ===== TOGGLE STATUS (Activate/Deactivate) =====
@@ -228,14 +198,20 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const handleAnalytics = async (formId) => {
     try {
       const analyticsData = await formService.getFormAnalytics(formId) || {};
+      const responses = await formService.getFormResponses(formId);
+      const selected = forms.find((f) => String(f.id) === String(formId));
+      const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
+
       setSelectedFormAnalytics({
         id: analyticsData.form_id || formId,
-        title: analyticsData.title || "Form Analytics",
+        title: analyticsData.title || (selected?.title) || "Form Analytics",
         analytics: analyticsData.analytics || {
           totalRespondents: 0,
           completionRate: 0,
           recentActivity: 0
-        }
+        },
+        fields: Array.isArray(formFields) ? formFields : [],
+        responses: Array.isArray(responses) ? responses : []
       });
       setIsAnalyticsOpen(true);
     } catch (err) {
@@ -545,14 +521,15 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const summarizeResponses = (response) => {
     const entries = normalizeAnswerEntries(response?.responses);
     if (!entries.length) return "No answers";
-    const preview = entries.slice(0, 2).map((entry, idx) => {
+    const preview = entries.slice(0, 3).map((entry, idx) => {
       const label = responseFieldLabelMap[entry.id] || entry.label || `Q${idx + 1}`;
-      return `${label}: ${formatAnswerValue(entry.value, 40)}`;
+      const val = formatAnswerValue(entry.value, 30);
+      return `${label}: ${val}`;
     });
-    if (entries.length > 2) {
-      preview.push(`(+${entries.length - 2} more)`);
+    if (entries.length > 3) {
+      preview.push(`...`);
     }
-    return preview.join(", ");
+    return preview.join(" | ");
   };
 
   const buildFullSummary = (response) => {
@@ -618,72 +595,27 @@ function Dashboard({ onLogout, userEmail, userName }) {
           <img src={headerLogo} alt="eFormX" className="header-logo" />
         </div>
         <div className="header-right">
-          <div style={{ position: "relative", marginRight: 16 }}>
-            <FaBell className="icon-bell" onClick={() => setShowNotifications(v => !v)} style={{ cursor: "pointer" }} />
+          <div className="notifications">
+            <FaBell
+              className="icon-bell"
+              onClick={() => setShowNotifications((v) => !v)}
+              aria-label="Notifications"
+              title="Notifications"
+            />
             {unreadCount > 0 && (
-              <span style={{
-                position: "absolute",
-                top: -6,
-                right: -6,
-                background: "#ef4444",
-                color: "#fff",
-                borderRadius: "9999px",
-                fontSize: 12,
-                padding: "2px 6px"
-              }}>{unreadCount}</span>
+              <span className="notifications-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount}
+              </span>
             )}
             {showNotifications && (
-              <div style={{
-                position: "absolute",
-                right: 0,
-                top: 28,
-                width: 280,
-                background: "#fff",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                borderRadius: 8,
-                overflow: "hidden",
-                zIndex: 20
-              }}>
-                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 600 }}>Notifications</span>
-                  <button
-                    onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                    style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
-                  >Mark all read</button>
-                  <button
-                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
-                  >Delete all</button>
-                </div>
-                <button
-                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
-                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
-                >View all</button>
-                <div style={{ maxHeight: 260, overflowY: "auto" }}>
-                  {notifications.length === 0 ? (
-                    <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
-                  ) : notifications.map(n => (
-                    <div key={n.id} style={{ padding: 12, borderBottom: "1px solid #f3f4f6", background: n.is_read ? "#fff" : "#f9fafb" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
-                      <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
-                      {!n.is_read && (
-                        <button
-                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                          style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
-                        >Mark read</button>
-                      )}
-                      <button
-                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                        style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
-                        aria-label="Delete notification"
-                        title="Delete notification"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkRead={async (id) => { try { await notificationsService.markRead(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDelete={async (id) => { try { await notificationsService.delete(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onMarkAllRead={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDeleteAll={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onClose={() => setShowNotifications(false)}
+              />
             )}
           </div>
           <div
@@ -737,27 +669,31 @@ function Dashboard({ onLogout, userEmail, userName }) {
                     style={{ cursor: "pointer" }}
                   >
                     <div className="form-card-header">
-                      <h2>{form.title || "Untitled Form"}</h2>
-                      <span className={`status-badge ${String(form.status || 'active').toLowerCase()}`}>
-                        {String(form.status || 'active').toUpperCase()}
-                      </span>
-                      <div className="card-actions">
-                        <FaChartBar
-                          className="action-icon"
-                          title="Analytics"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAnalytics(form.id);
-                          }}
-                        />
-                        <FaTrash
-                          className="action-icon"
-                          title="Delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteForm(form.id);
-                          }}
-                        />
+                      <h2 className={(form.title || "").length > 30 ? "long-title" : ""}>
+                        {form.title || "Untitled Form"}
+                      </h2>
+                      <div className="form-card-status-group">
+                        <span className={`status-badge ${String(form.status || 'active').toLowerCase()}`}>
+                          {String(form.status || 'active').toUpperCase()}
+                        </span>
+                        <div className="card-actions">
+                          <FaChartBar
+                            className="action-icon"
+                            title="Analytics"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAnalytics(form.id);
+                            }}
+                          />
+                          <FaTrash
+                            className="action-icon"
+                            title="Delete"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteForm(form.id);
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                     <p className="form-description">{form.description || "No description provided."}</p>
@@ -814,14 +750,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         </div>
       </div>
 
-      {/* CREATE / EDIT MODAL */}
-      <CreateFormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onCreateForm={handleCreateForm}
-        editMode={isEditMode}
-        formData={formToEdit}
-      />
+      {/* CREATE / EDIT MODAL (REMOVED) */}
 
       {/* SHARE MODAL */}
       {isShareModalOpen && (
@@ -906,7 +835,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 <div className="stat-label">Total Respondents</div>
                 <div className="stat-value">
                   {selectedFormAnalytics.analytics.totalRespondents}
-                  <span className="stat-percentage">%</span>
                 </div>
               </div>
               <div className="stat-card">
@@ -917,12 +845,18 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-label">Recent Activity</div>
+                <div className="stat-label">Questions</div>
                 <div className="stat-value">
-                  {selectedFormAnalytics.analytics.recentActivity}
-                  <span className="stat-percentage">%</span>
+                  {selectedFormAnalytics.fields?.length || 0}
                 </div>
               </div>
+            </div>
+
+            <div className="analytics-visuals">
+              <AnalyticsCharts
+                form={selectedFormAnalytics}
+                responses={selectedFormAnalytics.responses}
+              />
             </div>
             <div className="analytics-stats-footer">
               <button
@@ -1051,16 +985,14 @@ function Dashboard({ onLogout, userEmail, userName }) {
             </div>
             <div className="response-detail-list">
               {normalizeAnswerEntries(activeResponseDetail.responses).length === 0 ? (
-                <div className="response-detail-empty">No answers provided.</div>
+                <div className="response-detail-empty">No responses submitted.</div>
               ) : (
                 normalizeAnswerEntries(activeResponseDetail.responses).map((entry, idx) => {
                   const label = responseFieldLabelMap[entry.id] || entry.label || `Question ${idx + 1}`;
                   return (
-                    <div className="response-detail-row" key={`${entry.id || idx}-${idx}`}>
-                      <div className="response-question">Question</div>
-                      <div className="response-question-text">{label}</div>
-                      <div className="response-answer-label">Answer</div>
-                      <div className="response-answer">{formatAnswerValue(entry.value)}</div>
+                    <div className="detail-item-card" key={`${entry.id || idx}-${idx}`}>
+                      <h4 className="detail-question">{label}</h4>
+                      <p className="detail-answer">{formatAnswerValue(entry.value)}</p>
                     </div>
                   );
                 })
@@ -1085,11 +1017,6 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 >
                   ←
                 </span>
-                <img
-                  src={logo}
-                  alt="eFormX logo"
-                  className="profile-logo-mark"
-                />
               </div>
 
               <div className="profile-main">
@@ -1193,19 +1120,17 @@ function Dashboard({ onLogout, userEmail, userName }) {
                           <div className="profile-password-panel">
                             <div className="profile-form-group">
                               <label>New password</label>
-                              <div className="profile-password-row">
-                                <input
-                                  type="password"
-                                  className="profile-input profile-password-input"
-                                  value={newPassword}
-                                  onChange={(e) => {
-                                    setNewPassword(e.target.value);
-                                    if (profileNotification.message) setProfileNotification({ type: "", message: "" });
-                                  }}
-                                  placeholder="Enter new password"
-                                  autoComplete="new-password"
-                                />
-                              </div>
+                              <input
+                                type="password"
+                                className="profile-input profile-password-input"
+                                value={newPassword}
+                                onChange={(e) => {
+                                  setNewPassword(e.target.value);
+                                  if (profileNotification.message) setProfileNotification({ type: "", message: "" });
+                                }}
+                                placeholder="Enter new password"
+                                autoComplete="new-password"
+                              />
                               {newPassword.length > 0 && newPassword.length < 6 && (
                                 <div className="profile-field-error">Password must be at least 6 characters.</div>
                               )}
@@ -1213,19 +1138,17 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
                             <div className="profile-form-group">
                               <label>Confirm new password</label>
-                              <div className="profile-password-row">
-                                <input
-                                  type="password"
-                                  className="profile-input profile-password-input"
-                                  value={confirmNewPassword}
-                                  onChange={(e) => {
-                                    setConfirmNewPassword(e.target.value);
-                                    if (profileNotification.message) setProfileNotification({ type: "", message: "" });
-                                  }}
-                                  placeholder="Confirm new password"
-                                  autoComplete="new-password"
-                                />
-                              </div>
+                              <input
+                                type="password"
+                                className="profile-input profile-password-input"
+                                value={confirmNewPassword}
+                                onChange={(e) => {
+                                  setConfirmNewPassword(e.target.value);
+                                  if (profileNotification.message) setProfileNotification({ type: "", message: "" });
+                                }}
+                                placeholder="Confirm new password"
+                                autoComplete="new-password"
+                              />
                               {confirmNewPassword.length > 0 && newPassword !== confirmNewPassword && (
                                 <div className="profile-field-error">Passwords do not match.</div>
                               )}
@@ -1255,8 +1178,9 @@ function Dashboard({ onLogout, userEmail, userName }) {
             </div>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }
 

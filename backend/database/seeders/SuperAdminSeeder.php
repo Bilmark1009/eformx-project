@@ -18,6 +18,7 @@ class SuperAdminSeeder extends Seeder
             [
                 'name' => 'Admin',
                 'password' => Hash::make('password'),
+                'status' => 'Active',
             ]
         );
     }

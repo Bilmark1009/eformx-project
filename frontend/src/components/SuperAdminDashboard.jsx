@@ -1,13 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import "../styles/SuperAdminDashboard.css";
-import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera } from "react-icons/fa";
+import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera, FaUsers, FaFileAlt, FaCheckCircle, FaUserShield } from "react-icons/fa";
 import CreateAccountModal from "./CreateAccountModal";
 import logo from "../assets/eFormX.png";
 import authService from "../services/authService";
 import userService from "../services/userService";
 import { FaSearch } from "react-icons/fa";
 import notificationsService from "../services/notificationsService";
+import NotificationDropdown from "./NotificationDropdown";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
+
+const COLORS = ['#1a5f6f', '#5a8a96', '#ffbb28', '#ff8042', '#0f4c5c', '#8884d8'];
+
 
 
 function SuperAdminDashboard({ onLogout }) {
@@ -15,9 +26,11 @@ function SuperAdminDashboard({ onLogout }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [systemStats, setSystemStats] = useState(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [accountToEdit, setAccountToEdit] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -27,7 +40,6 @@ function SuperAdminDashboard({ onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
-  const navigate = useNavigate();
 
 
   // Load accounts from backend on mount
@@ -46,6 +58,16 @@ function SuperAdminDashboard({ onLogout }) {
       }
     };
     loadUsers();
+    // Load system stats
+    const loadStats = async () => {
+      try {
+        const stats = await userService.getSystemStats();
+        setSystemStats(stats);
+      } catch (e) {
+        console.error("Failed to load stats:", e);
+      }
+    };
+    loadStats();
     // Load notifications for Super Admin
     const loadNotifications = async () => {
       try {
@@ -178,9 +200,13 @@ function SuperAdminDashboard({ onLogout }) {
     try {
       const id = accountToEdit.id;
       const updated = await userService.updateUser(id, updatedAccount, accountToEdit.role);
-      setAccounts((prev) =>
-        prev.map(acc => acc.id === id ? updated : acc)
-      );
+      setAccounts((prev) => prev.map((acc) => {
+        const sameId = acc.id === id;
+        const sameRole = String(acc.role || "").toLowerCase() === String(accountToEdit.role || "").toLowerCase();
+        const sameEmail = String(acc.email || "").toLowerCase() === String(accountToEdit.email || "").toLowerCase();
+
+        return sameId && (sameRole || sameEmail) ? updated : acc;
+      }));
       setAccountToEdit(null);
       setIsModalOpen(false);
       setError("");
@@ -198,11 +224,19 @@ function SuperAdminDashboard({ onLogout }) {
   };
 
   const confirmDelete = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
     try {
       const target = accountToDelete;
       if (target?.id) {
         // Optimistic update - remove immediately
-        setAccounts((prev) => prev.filter(acc => acc.id !== target.id));
+        setAccounts((prev) => prev.filter((acc) => {
+          const sameId = acc.id === target.id;
+          const sameRole = String(acc.role || "").toLowerCase() === String(target.role || "").toLowerCase();
+          const sameEmail = String(acc.email || "").toLowerCase() === String(target.email || "").toLowerCase();
+
+          return !(sameId && (sameRole || sameEmail));
+        }));
         setIsDeleteModalOpen(false);
         setAccountToDelete(null);
 
@@ -224,6 +258,8 @@ function SuperAdminDashboard({ onLogout }) {
         const users = await userService.getUsers();
         setAccounts(users);
       } catch (_) { }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -273,59 +309,15 @@ function SuperAdminDashboard({ onLogout }) {
               }}>{unreadCount}</span>
             )}
             {showNotifications && (
-              <div style={{
-                position: "absolute",
-                right: 0,
-                top: 28,
-                width: 280,
-                background: "#fff",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                borderRadius: 8,
-                overflow: "hidden",
-                zIndex: 10
-              }}>
-                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 600 }}>Notifications</span>
-                  <button
-                    onClick={async () => {
-                      try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { }
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
-                  >Mark all read</button>
-                  <button
-                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
-                  >Delete all</button>
-                </div>
-                <button
-                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
-                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
-                >View all</button>
-                <div style={{ maxHeight: 260, overflowY: "auto" }}>
-                  {notifications.length === 0 ? (
-                    <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
-                  ) : notifications.map(n => (
-                    <div key={n.id} style={{ padding: 12, borderBottom: "1px solid #f3f4f6", background: n.is_read ? "#fff" : "#f9fafb" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
-                      <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
-                      {!n.is_read && (
-                        <button
-                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                          style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
-                        >Mark read</button>
-                      )}
-                      <button
-                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                        style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
-                        aria-label="Delete notification"
-                        title="Delete notification"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkRead={async (id) => { try { await notificationsService.markRead(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDelete={async (id) => { try { await notificationsService.delete(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onMarkAllRead={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDeleteAll={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onClose={() => setShowNotifications(false)}
+                isSuperAdmin={true}
+              />
             )}
           </div>
           <div
@@ -345,12 +337,83 @@ function SuperAdminDashboard({ onLogout }) {
           </div>
         </div>
 
-      </header>
+      </header >
+
+      {/* STATS OVERVIEW */}
+      <div className="sa-stats-container">
+        <div className="stats-section">
+          <h2 className="sa-section-title">System Overview</h2>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon-wrapper users">
+                <FaUsers />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Total Users</span>
+                <span className="stat-value">{systemStats?.metrics?.total_users || 0}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-wrapper forms">
+                <FaFileAlt />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Total Forms</span>
+                <span className="stat-value">{systemStats?.metrics?.total_forms || 0}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-wrapper responses">
+                <FaCheckCircle />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Total Submissions</span>
+                <span className="stat-value">{systemStats?.metrics?.total_responses || 0}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon-wrapper admins">
+                <FaUserShield />
+              </div>
+              <div className="stat-info">
+                <span className="stat-label">Active Admins</span>
+                <span className="stat-value">{systemStats?.metrics?.active_admins || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="stats-charts-section">
+          <h2 className="sa-section-title">User Distribution</h2>
+          <div className="chart-wrapper" style={{ height: 250, width: '100%' }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={systemStats?.distribution || []}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="count"
+                  nameKey="role"
+                >
+                  {(systemStats?.distribution || []).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
 
       {/* TITLE */}
-      <div className="page-title">
+      < div className="page-title" >
         <h2>Account Management</h2>
-        <div className="page-actions">
+        <div className="toolbar-actions">
           <div className="search-wrapper">
             <FaSearch className="search-icon" />
             <input
@@ -361,21 +424,21 @@ function SuperAdminDashboard({ onLogout }) {
               className="search-input"
             />
           </div>
-        </div>
 
-        <button
-          className="create-account-btn"
-          onClick={() => {
-            setAccountToEdit(null);
-            setIsModalOpen(true);
-          }}
-        >
-          <FaPlus /> Create Account
-        </button>
-      </div>
+          <button
+            className="create-account-btn"
+            onClick={() => {
+              setAccountToEdit(null);
+              setIsModalOpen(true);
+            }}
+          >
+            <FaPlus /> Create <span className="hide-on-mobile">Account</span>
+          </button>
+        </div>
+      </div >
 
       {/* TABLE */}
-      <div className="table-card">
+      < div className="table-card" >
         {error && (
           <div style={{
             background: '#fee2e2',
@@ -386,7 +449,8 @@ function SuperAdminDashboard({ onLogout }) {
           }}>
             {error}
           </div>
-        )}
+        )
+        }
         <table>
           <thead>
             <tr>
@@ -440,10 +504,10 @@ function SuperAdminDashboard({ onLogout }) {
             )}
           </tbody>
         </table>
-      </div>
+      </div >
 
       {/* CREATE / EDIT ACCOUNT MODAL */}
-      <CreateAccountModal
+      < CreateAccountModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
@@ -455,149 +519,156 @@ function SuperAdminDashboard({ onLogout }) {
       />
 
       {/* PROFILE VIEW MODAL */}
-      {isProfileOpen && (
-        <div className="modal-overlay">
-          <div className="profile-modal-card">
-            <span
-              className="close-icon"
-              onClick={() => setIsProfileOpen(false)}
-            >
-              ✖
-            </span>
-
-            <div className="profile-picture">
-              <img src={superAdminProfile.photo} alt="Profile" />
-            </div>
-
-            <h3 className="profile-name">{superAdminProfile.name}</h3>
-
-            <div className="profile-actions">
-              <button
-                className="edit-profile-btn"
-                onClick={() => setIsEditProfileOpen(true)}
+      {
+        isProfileOpen && (
+          <div className="modal-overlay">
+            <div className="profile-modal-card">
+              <span
+                className="close-icon"
+                onClick={() => setIsProfileOpen(false)}
               >
-                <FaUserEdit className="btn-icon" />
-                Edit Profile
-              </button>
+                ✖
+              </span>
 
-              <button className="logout-btn" onClick={handleLogout}>
-                Log out
-              </button>
+              <div className="profile-picture">
+                <img src={superAdminProfile.photo} alt="Profile" />
+              </div>
+
+              <h3 className="profile-name">{superAdminProfile.name}</h3>
+
+              <div className="profile-actions">
+                <button
+                  className="edit-profile-btn"
+                  onClick={() => setIsEditProfileOpen(true)}
+                >
+                  <FaUserEdit className="btn-icon" />
+                  Edit Profile
+                </button>
+
+                <button className="logout-btn" onClick={handleLogout}>
+                  Log out
+                </button>
+              </div>
+
             </div>
-
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* EDIT PROFILE MODAL */}
-      {isEditProfileOpen && (
-        <div className="modal-overlay">
-          <div className="profile-modal-card">
-            <span
-              className="close-icon"
-              onClick={() => setIsEditProfileOpen(false)}
-            >
-              ✖
-            </span>
+      {
+        isEditProfileOpen && (
+          <div className="modal-overlay">
+            <div className="profile-modal-card">
+              <span
+                className="close-icon"
+                onClick={() => setIsEditProfileOpen(false)}
+              >
+                ✖
+              </span>
 
-            {profileMessage && (
-              <div className="success-banner" role="status" aria-live="polite">
-                {profileMessage}
+              {profileMessage && (
+                <div className="success-banner" role="status" aria-live="polite">
+                  {profileMessage}
+                </div>
+              )}
+
+              <h3 className="profile-name">Edit Profile</h3>
+
+              <div className="profile-picture">
+                <img src={superAdminProfile.photo} alt="Profile" />
+
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="profileFileInput"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setSuperAdminProfile({
+                        ...superAdminProfile,
+                        photo: reader.result,
+                      });
+                    };
+                    if (file) reader.readAsDataURL(file);
+                  }}
+                />
+
+                {/* Overlay + icon */}
+                <label htmlFor="profileFileInput" className="profile-upload-icon">
+                  <FaCamera />
+                </label>
+
               </div>
-            )}
 
-            <h3 className="profile-name">Edit Profile</h3>
 
-            <div className="profile-picture">
-              <img src={superAdminProfile.photo} alt="Profile" />
-
-              {/* Hidden file input */}
               <input
-                type="file"
-                accept="image/*"
-                id="profileFileInput"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setSuperAdminProfile({
-                      ...superAdminProfile,
-                      photo: reader.result,
-                    });
-                  };
-                  if (file) reader.readAsDataURL(file);
-                }}
+                type="text"
+                value={superAdminProfile.name}
+                onChange={(e) =>
+                  setSuperAdminProfile({
+                    ...superAdminProfile,
+                    name: e.target.value,
+                  })
+                }
+                placeholder="Full Name"
+                className="profile-input"
               />
 
-              {/* Overlay + icon */}
-              <label htmlFor="profileFileInput" className="profile-upload-icon">
-                <FaCamera />
-              </label>
+              <input
+                type="email"
+                value={superAdminProfile.email}
+                onChange={(e) =>
+                  setSuperAdminProfile({
+                    ...superAdminProfile,
+                    email: e.target.value,
+                  })
+                }
+                placeholder="Email"
+                className="profile-input"
+              />
 
+              <button className="save-btn" onClick={handleSaveProfile}>
+                Save Changes
+              </button>
             </div>
-
-
-            <input
-              type="text"
-              value={superAdminProfile.name}
-              onChange={(e) =>
-                setSuperAdminProfile({
-                  ...superAdminProfile,
-                  name: e.target.value,
-                })
-              }
-              placeholder="Full Name"
-              className="profile-input"
-            />
-
-            <input
-              type="email"
-              value={superAdminProfile.email}
-              onChange={(e) =>
-                setSuperAdminProfile({
-                  ...superAdminProfile,
-                  email: e.target.value,
-                })
-              }
-              placeholder="Email"
-              className="profile-input"
-            />
-
-            <button className="save-btn" onClick={handleSaveProfile}>
-              Save Changes
-            </button>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* DELETE CONFIRMATION MODAL */}
-      {isDeleteModalOpen && (
-        <div className="modal-overlay">
-          <div className="delete-modal-card">
-            <h3>Are you sure you want to delete this account?</h3>
+      {
+        isDeleteModalOpen && (
+          <div className="modal-overlay">
+            <div className="delete-modal-card">
+              <h3>Are you sure you want to delete this account?</h3>
 
-            <div className="delete-actions">
-              <button
-                className="cancel-btn"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Cancel
-              </button>
+              <div className="delete-actions">
+                <button
+                  className="cancel-btn"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                >
+                  Cancel
+                </button>
 
-              <button
-                className="confirm-delete-btn"
-                onClick={confirmDelete}
-              >
-                Delete
-              </button>
+                <button
+                  className="confirm-delete-btn"
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
 
-    </div>
+    </div >
   );
 }
 
