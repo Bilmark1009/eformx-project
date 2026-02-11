@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Form;
-use App\Models\FormEngagement;
 use App\Models\User;
 use App\Models\Notification;
 use Illuminate\Http\Request;
@@ -55,7 +54,7 @@ class FormController extends Controller
         try {
             Notification::create([
                 'title' => 'New form created',
-                'message' => 'Form "'.$form->title.'" was created.',
+                'message' => 'Form "' . $form->title . '" was created.',
                 'type' => 'success',
                 'recipient_user_id' => $user->id,
             ]);
@@ -130,7 +129,7 @@ class FormController extends Controller
                 $type = ($status === 'active') ? 'success' : 'warning';
                 Notification::create([
                     'title' => 'Form status changed',
-                    'message' => 'Form "'.$form->title.'" is now '.$status.'.',
+                    'message' => 'Form "' . $form->title . '" is now ' . $status . '.',
                     'type' => $type,
                     'recipient_user_id' => $user->id,
                 ]);
@@ -156,7 +155,7 @@ class FormController extends Controller
         try {
             Notification::create([
                 'title' => 'Form deleted',
-                'message' => 'Form "'.$title.'" was deleted.',
+                'message' => 'Form "' . $title . '" was deleted.',
                 'type' => 'warning',
                 'recipient_user_id' => $user->id,
             ]);
