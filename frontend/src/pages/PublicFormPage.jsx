@@ -21,6 +21,7 @@ const PublicFormPage = () => {
     const attemptIdRef = useRef(null);
     const hasSubmittedRef = useRef(false);
     const sessionKeyRef = useRef(null);
+    const reloadGuardKeyRef = useRef(null);
 
     const loadAttemptFromSession = (formId) => {
         const key = `form_attempt_${formId}`;
@@ -50,6 +51,24 @@ const PublicFormPage = () => {
     const clearAttemptFromSession = () => {
         if (!sessionKeyRef.current) return;
         sessionStorage.removeItem(sessionKeyRef.current);
+    };
+
+    const setReloadGuard = () => {
+        if (!reloadGuardKeyRef.current) return;
+        try {
+            sessionStorage.setItem(reloadGuardKeyRef.current, '1');
+        } catch (e) {
+            // swallow
+        }
+    };
+
+    const clearReloadGuard = () => {
+        if (!reloadGuardKeyRef.current) return;
+        try {
+            sessionStorage.removeItem(reloadGuardKeyRef.current);
+        } catch (e) {
+            // swallow
+        }
     };
 
     const ensureAttemptForForm = async (formId) => {
@@ -90,12 +109,17 @@ const PublicFormPage = () => {
     };
 
     const sendAbandonmentBeacon = () => {
-        if (!attemptIdRef.current || hasSubmittedRef.current || !navigator.sendBeacon) {
+        if (!attemptIdRef.current || hasSubmittedRef.current) {
             return;
         }
 
         // Avoid marking as abandoned on reloads; we keep the attempt alive for the session.
         if (isReloadNavigation()) {
+            return;
+        }
+
+        // Also skip if a reload guard was set during beforeunload (persists across reloads in sessionStorage).
+        if (reloadGuardKeyRef.current && sessionStorage.getItem(reloadGuardKeyRef.current)) {
             return;
         }
 
@@ -105,9 +129,30 @@ const PublicFormPage = () => {
         }
 
         const url = `${baseUrl}/forms/attempts/${attemptIdRef.current}/status`;
-        const payload = JSON.stringify({ status: 'abandoned' });
-        const blob = new Blob([payload], { type: 'application/json' });
-        navigator.sendBeacon(url, blob);
+
+        // Prefer sendBeacon with FormData; if unavailable or fails, fall back to fetch with keepalive.
+        try {
+            if (navigator.sendBeacon) {
+                const payload = new FormData();
+                payload.append('status', 'abandoned');
+                const ok = navigator.sendBeacon(url, payload);
+                if (ok) return;
+            }
+        } catch (e) {
+            // fall through to fetch
+        }
+
+        try {
+            fetch(url, {
+                method: 'POST',
+                body: new URLSearchParams({ status: 'abandoned' }),
+                keepalive: true,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'include',
+            }).catch(() => {});
+        } catch (e) {
+            // swallow
+        }
     };
 
     useEffect(() => {
@@ -115,6 +160,9 @@ const PublicFormPage = () => {
             try {
                 const data = await formService.getPublicForm(id);
                 setForm(data);
+
+                reloadGuardKeyRef.current = `form_attempt_reload_${data.id}`;
+                clearReloadGuard();
 
                 try {
                     await ensureAttemptForForm(data.id);
@@ -165,6 +213,7 @@ const PublicFormPage = () => {
 
     useEffect(() => {
         const handleBeforeUnload = () => {
+            setReloadGuard();
             sendAbandonmentBeacon();
         };
 
