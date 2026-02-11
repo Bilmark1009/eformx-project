@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../styles/SuperAdminDashboard.css";
 import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera, FaUsers, FaFileAlt, FaCheckCircle, FaUserShield } from "react-icons/fa";
 import CreateAccountModal from "./CreateAccountModal";
@@ -36,10 +36,46 @@ function SuperAdminDashboard({ onLogout }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
+
+  // Change password (same behavior as Dashboard.jsx: saved via "Save Changes")
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [hideChangePasswordCta, setHideChangePasswordCta] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsAnchorRef = useRef(null);
   const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  // Close notifications when clicking anywhere outside the bell/dropdown area
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handlePointerDown = (event) => {
+      const anchor = notificationsAnchorRef.current;
+      if (!anchor) return;
+      if (anchor.contains(event.target)) return;
+      setShowNotifications(false);
+    };
+
+    const handleAnyScroll = () => {
+      setShowNotifications(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown, true);
+    document.addEventListener("touchstart", handlePointerDown, true);
+    // Close on scroll/wheel anywhere (page, nested containers, etc.)
+    window.addEventListener("scroll", handleAnyScroll, true);
+    window.addEventListener("wheel", handleAnyScroll, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown, true);
+      document.removeEventListener("touchstart", handlePointerDown, true);
+      window.removeEventListener("scroll", handleAnyScroll, true);
+      window.removeEventListener("wheel", handleAnyScroll, true);
+    };
+  }, [showNotifications]);
 
 
   // Load accounts from backend on mount
@@ -133,12 +169,34 @@ function SuperAdminDashboard({ onLogout }) {
 
   const handleSaveProfile = async () => {
     try {
+      const hasPasswordChange = !!newPassword || !!confirmNewPassword;
+      if (hasPasswordChange) {
+        if (!newPassword || newPassword.length < 6) {
+          setProfileMessage("New password must be at least 6 characters");
+          return;
+        }
+        if (newPassword !== confirmNewPassword) {
+          setProfileMessage("New passwords do not match");
+          return;
+        }
+      }
+
       // Persist profile changes to backend account (Super Admin)
       const updated = await authService.updateProfile({
         name: superAdminProfile.name,
         email: superAdminProfile.email,
         photo: superAdminProfile.photo,
       });
+
+      if (hasPasswordChange) {
+        await authService.changePassword({
+          password: newPassword,
+          password_confirmation: confirmNewPassword,
+        });
+        setNewPassword("");
+        setConfirmNewPassword("");
+        setIsChangePasswordOpen(false);
+      }
 
       // Keep local UI profile in sync
       const nextProfile = {
@@ -150,7 +208,7 @@ function SuperAdminDashboard({ onLogout }) {
       setSuperAdminProfile(nextProfile);
       localStorage.setItem("superAdminProfile", JSON.stringify(nextProfile));
 
-      setProfileMessage("Profile updated!");
+      setProfileMessage(hasPasswordChange ? "Profile and password updated!" : "Profile updated!");
     } catch (e) {
       const msg = e?.response?.data?.message || "Failed to update profile.";
       setProfileMessage(msg);
@@ -162,6 +220,13 @@ function SuperAdminDashboard({ onLogout }) {
   // Account Logic
   const handleCreateAccount = async (account) => {
     try {
+      // Validate full name: must not contain numbers
+      if (/\d/.test(account?.name || "")) {
+        const message = "Full name must not contain numbers.";
+        setError(message);
+        throw new Error(message);
+      }
+
       // Optimistic update - add placeholder immediately
       const tempId = `temp-${Date.now()}`;
       const optimisticAccount = { ...account, id: tempId, status: 'active' };
@@ -294,7 +359,7 @@ function SuperAdminDashboard({ onLogout }) {
         </div>
 
         <div className="sa-right">
-          <div style={{ position: "relative" }}>
+          <div ref={notificationsAnchorRef} style={{ position: "relative" }}>
             <FaBell className="icon" onClick={() => setShowNotifications(v => !v)} style={{ cursor: "pointer" }} />
             {unreadCount > 0 && (
               <span style={{
@@ -539,7 +604,13 @@ function SuperAdminDashboard({ onLogout }) {
               <div className="profile-actions">
                 <button
                   className="edit-profile-btn"
-                  onClick={() => setIsEditProfileOpen(true)}
+                  onClick={() => {
+                    setIsEditProfileOpen(true);
+                    setIsChangePasswordOpen(false);
+                    setNewPassword("");
+                    setConfirmNewPassword("");
+                    setHideChangePasswordCta(false);
+                  }}
                 >
                   <FaUserEdit className="btn-icon" />
                   Edit Profile
@@ -562,7 +633,13 @@ function SuperAdminDashboard({ onLogout }) {
             <div className="profile-modal-card">
               <span
                 className="close-icon"
-                onClick={() => setIsEditProfileOpen(false)}
+                onClick={() => {
+                  setIsEditProfileOpen(false);
+                  setIsChangePasswordOpen(false);
+                  setNewPassword("");
+                  setConfirmNewPassword("");
+                  setHideChangePasswordCta(false);
+                }}
               >
                 ✖
               </span>
@@ -630,6 +707,59 @@ function SuperAdminDashboard({ onLogout }) {
                 placeholder="Email"
                 className="profile-input"
               />
+
+              {/* CHANGE PASSWORD */}
+              <div style={{ marginTop: 10, width: "100%" }}>
+                {!hideChangePasswordCta && !isChangePasswordOpen && (
+                  <button
+                    type="button"
+                    className="edit-profile-btn"
+                    onClick={() => {
+                      setHideChangePasswordCta(true);
+                      setTimeout(() => setHideChangePasswordCta(false), 700);
+                      setIsChangePasswordOpen(true);
+                      setNewPassword("");
+                      setConfirmNewPassword("");
+                    }}
+                    style={{ width: "100%" }}
+                  >
+                    Change Password
+                  </button>
+                )}
+
+                {isChangePasswordOpen && (
+                  <div style={{ marginTop: 10 }}>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New password"
+                      className="profile-input"
+                      autoComplete="new-password"
+                    />
+                    {newPassword.length > 0 && newPassword.length < 6 && (
+                      <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>
+                        Password must be at least 6 characters.
+                      </div>
+                    )}
+
+                    <input
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      className="profile-input"
+                      autoComplete="new-password"
+                      style={{ marginTop: 10 }}
+                    />
+                    {confirmNewPassword.length > 0 && newPassword !== confirmNewPassword && (
+                      <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>
+                        Passwords do not match.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <button className="save-btn" onClick={handleSaveProfile}>
                 Save Changes

@@ -57,6 +57,13 @@ function CreateAccountModal({ isOpen, onClose, onCreate, onUpdate, account }) {
       return;
     }
 
+    // Full name should not contain numbers
+    if (/\d/.test(form.name)) {
+      setIsError(true);
+      setMessage("Full name must not contain numbers.");
+      return;
+    }
+
     // Stricter email format check: require domain + TLD
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!emailRegex.test(form.email)) {
