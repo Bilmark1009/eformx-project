@@ -20,12 +20,13 @@
 }
 
 .builder-container {
-    min-height: 100vh;
+    height: 100vh;
     background-color: var(--gray-bg);
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 /* HEADER */
@@ -38,10 +39,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: sticky;
-    top: 0;
+    position: relative;
+    /* Changed from sticky */
     z-index: 1000;
     box-shadow: var(--shadow-md);
+    flex-shrink: 0;
 }
 
 .header-left {
@@ -98,10 +100,14 @@
     max-width: 1100px;
     /* More compact width */
     width: 100%;
-    margin: 2rem auto;
+    margin: 0 auto;
+    /* Removed top margin */
     gap: 2.5rem;
-    padding: 0 1.5rem;
+    padding: 2rem 1.5rem;
+    /* Added top padding */
     flex: 1;
+    overflow: hidden;
+    /* Prevent container scroll */
 }
 
 /* SIDEBAR */
@@ -109,11 +115,15 @@
     width: 240px;
     /* Reduced width */
     flex-shrink: 0;
+    height: 100%;
+    overflow-y: auto;
+    /* Allow sidebar scroll if tools are many */
+    padding-bottom: 2rem;
 }
 
 .sidebar-sticky {
-    position: sticky;
-    top: 5rem;
+    /* Fixed in place by parent container's overflow settings */
+    height: auto;
 }
 
 .builder-section-title {
@@ -195,6 +205,9 @@
     flex-direction: column;
     gap: 1.25rem;
     /* Reduced gap */
+    overflow-y: auto;
+    height: 100%;
+    padding-bottom: 2rem;
 }
 
 .builder-card {
@@ -477,9 +490,11 @@
 
     .builder-layout {
         flex-direction: column;
-        margin: 1rem auto;
+        margin: 0 auto;
         gap: 1.5rem;
-        padding: 0 1rem;
+        padding: 1rem;
+        overflow-y: auto;
+        /* Allow whole layout to scroll on mobile */
     }
 
     .builder-sidebar {
