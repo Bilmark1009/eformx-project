@@ -115,11 +115,11 @@
   min-height: 120px;
 }
 
-.stat-card:hover {
+/* .stat-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 30px rgba(15, 76, 92, 0.1);
   border-color: rgba(15, 76, 92, 0.2);
-}
+} */
 
 .stat-icon-wrapper {
   width: 56px;

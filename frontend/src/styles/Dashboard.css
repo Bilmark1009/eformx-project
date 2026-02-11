@@ -1760,11 +1760,11 @@ body {
   flex: 1;
 }
 
-.stat-card:hover {
+/* .stat-card:hover {
   background: var(--teal-dark);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-}
+} */
 
 .stat-label {
   font-size: 1.1rem;
