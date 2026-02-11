@@ -15,7 +15,7 @@ const PublicFormPage = () => {
     const [error, setError] = useState('');
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    // const [studentId] = useState(getOrCreateStudentId); // Removed due to ESLint no-undef error
+    // studentId logic removed due to ESLint no-undef error
 
     const [hasNameField, setHasNameField] = useState(false);
     const [hasEmailField, setHasEmailField] = useState(false);
@@ -185,13 +185,9 @@ const PublicFormPage = () => {
     };
 
     useEffect(() => {
-        if (!studentId) {
-            return;
-        }
-
         const fetchForm = async () => {
             try {
-                const data = await formService.getPublicForm(id, studentId);
+                const data = await formService.getPublicForm(id);
                 setForm(data);
 
                 reloadGuardKeyRef.current = `form_attempt_reload_${data.id}`;
@@ -242,7 +238,7 @@ const PublicFormPage = () => {
         };
 
         fetchForm();
-    }, [id, studentId]);
+    }, [id]);
 
     useEffect(() => {
         const handleBeforeUnload = () => {

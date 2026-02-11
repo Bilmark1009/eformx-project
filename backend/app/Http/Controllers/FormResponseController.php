@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Form;
 use App\Models\FormAttempt;
-use App\Models\FormEngagement;
 use App\Models\FormResponse;
 use App\Models\User;
 use App\Models\Notification;
@@ -128,8 +127,7 @@ class FormResponseController extends Controller
             // swallow notification errors
         }
 
-        // Track submission for response-rate metrics
-        $this->recordSubmission($form, $validated['student_id'] ?? null);
+        // ...existing code...
 
         return response()->json([
             'message' => 'Response submitted successfully',
@@ -150,34 +148,5 @@ class FormResponseController extends Controller
         return response()->json($responses);
     }
 
-    private function recordSubmission(Form $form, ?string $studentId): void
-    {
-        $now = now();
-
-        if ($studentId === null) {
-            $engagement = FormEngagement::where('form_id', $form->id)
-                ->whereNull('student_id')
-                ->whereNull('submitted_at')
-                ->latest('id')
-                ->first();
-
-            if (!$engagement) {
-                $engagement = new FormEngagement([
-                    'form_id' => $form->id,
-                    'student_id' => null,
-                    'viewed_at' => $now,
-                ]);
-            }
-        } else {
-            $engagement = FormEngagement::firstOrNew([
-                'form_id' => $form->id,
-                'student_id' => $studentId,
-            ]);
-        }
-
-        $engagement->viewed_at = $engagement->viewed_at ?: $now;
-        $engagement->status = 'submitted';
-        $engagement->submitted_at = $now;
-        $engagement->save();
-    }
+    // ...existing code...
 }
