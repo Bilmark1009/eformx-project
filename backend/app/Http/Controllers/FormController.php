@@ -90,8 +90,7 @@ class FormController extends Controller
             return response()->json(['message' => 'This form is currently inactive and not accepting responses.'], 403);
         }
 
-        // Record a view event for response-rate tracking
-        $this->recordFormView($form, $request->input('student_id'));
+        // ...existing code...
 
         // Return only necessary fields for public view
         return response()->json([
@@ -101,32 +100,6 @@ class FormController extends Controller
             'fields' => $form->fields,
             'status' => $form->status,
         ]);
-    }
-
-    private function recordFormView(Form $form, ?string $studentId): void
-    {
-        $now = now();
-
-        // De-dupe by student: refreshes reuse the same row
-        $engagement = FormEngagement::firstOrNew([
-            'form_id' => $form->id,
-            'student_id' => $studentId,
-        ]);
-
-        // If it already exists, don't create extra views; just ensure viewed_at is set
-        if ($engagement->exists) {
-            $engagement->viewed_at = $engagement->viewed_at ?: $now;
-            if ($engagement->status !== 'submitted') {
-                $engagement->status = 'viewed';
-            }
-            $engagement->save();
-            return;
-        }
-
-        // New viewer
-        $engagement->status = 'viewed';
-        $engagement->viewed_at = $now;
-        $engagement->save();
     }
 
     /**
