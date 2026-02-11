@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import formService from '../services/formService';
 import api from '../services/api';
@@ -133,7 +133,7 @@ const PublicFormPage = () => {
         return navEntries[0].type === 'reload';
     };
 
-    const sendAbandonmentBeacon = () => {
+    const sendAbandonmentBeacon = useCallback(() => {
         if (!attemptIdRef.current || hasSubmittedRef.current) {
             return;
         }
@@ -176,13 +176,13 @@ const PublicFormPage = () => {
                 body: payload,
                 keepalive: true,
                 credentials: 'include',
-            }).catch(() => {});
+            }).catch(() => { });
         } catch (e) {
             // swallow
         }
 
         setTimeout(clearReloadGuard, 0);
-    };
+    }, []);
 
     useEffect(() => {
         const fetchForm = async () => {
@@ -260,7 +260,7 @@ const PublicFormPage = () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, []);
+    }, [sendAbandonmentBeacon]);
 
     const handleInputChange = (fieldId, value) => {
         handleFormInteraction();

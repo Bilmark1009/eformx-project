@@ -316,16 +316,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   // ===== EXPORTS (ANALYTICS ONLY) =====
-  const handleExportAnalyticsCSV = async () => {
-    if (!selectedFormAnalytics?.id) return;
-    try {
-      const res = await formService.exportAnalyticsCsv(selectedFormAnalytics.id);
-      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.csv`);
-    } catch (err) {
-      console.error("Failed to export analytics CSV", err);
-      alert("Could not export analytics CSV. Please try again.");
-    }
-  };
+
 
   const handleExportAnalyticsXLSX = async () => {
     if (!selectedFormAnalytics?.id) return;
