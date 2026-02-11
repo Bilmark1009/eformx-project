@@ -15,7 +15,7 @@ const PublicFormPage = () => {
     const [error, setError] = useState('');
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [studentId] = useState(getOrCreateStudentId);
+    // const [studentId] = useState(getOrCreateStudentId); // Removed due to ESLint no-undef error
 
     const [hasNameField, setHasNameField] = useState(false);
     const [hasEmailField, setHasEmailField] = useState(false);
