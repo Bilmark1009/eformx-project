@@ -23,6 +23,7 @@ const PublicFormPage = () => {
     const hasSubmittedRef = useRef(false);
     const sessionKeyRef = useRef(null);
     const reloadGuardKeyRef = useRef(null);
+    const hasInteractedRef = useRef(false);
 
     const loadAttemptFromSession = (formId) => {
         const key = `form_attempt_${formId}`;
@@ -50,8 +51,11 @@ const PublicFormPage = () => {
     };
 
     const clearAttemptFromSession = () => {
-        if (!sessionKeyRef.current) return;
-        sessionStorage.removeItem(sessionKeyRef.current);
+        if (sessionKeyRef.current) {
+            sessionStorage.removeItem(sessionKeyRef.current);
+        }
+        attemptIdRef.current = null;
+        hasInteractedRef.current = false;
     };
 
     const setReloadGuard = () => {
@@ -103,6 +107,26 @@ const PublicFormPage = () => {
         }
     };
 
+    const ensureAttemptAfterInteraction = () => {
+        if (!form?.id) {
+            return;
+        }
+
+        if (attemptIdRef.current) {
+            hasInteractedRef.current = true;
+            return;
+        }
+
+        hasInteractedRef.current = true;
+        ensureAttemptForForm(form.id).catch((err) => {
+            console.error('Failed to ensure attempt after interaction:', err);
+        });
+    };
+
+    const handleFormInteraction = () => {
+        ensureAttemptAfterInteraction();
+    };
+
     const isReloadNavigation = () => {
         const navEntries = performance.getEntriesByType('navigation');
         if (!navEntries || navEntries.length === 0) return false;
@@ -133,12 +157,12 @@ const PublicFormPage = () => {
 
         const url = `${baseUrl}/forms/attempts/${attemptIdRef.current}/status`;
 
+        const payload = new FormData();
+        payload.append('status', 'abandoned');
+
         // Prefer sendBeacon with FormData; if unavailable or fails, fall back to fetch with keepalive.
         try {
-            const payload = new FormData();
-            payload.append('status', 'abandoned');
             if (navigator.sendBeacon) {
-                const payload = new FormData();
                 const ok = navigator.sendBeacon(url, payload);
                 if (ok) return;
             }
@@ -173,10 +197,10 @@ const PublicFormPage = () => {
                 reloadGuardKeyRef.current = `form_attempt_reload_${data.id}`;
                 clearReloadGuard();
 
-                try {
-                    await ensureAttemptForForm(data.id);
-                } catch (attemptError) {
-                    console.error('Failed to start form attempt:', attemptError);
+                const storedAttemptId = loadAttemptFromSession(data.id);
+                if (storedAttemptId) {
+                    attemptIdRef.current = storedAttemptId;
+                    hasInteractedRef.current = true;
                 }
 
                 // Detect if Name or Email fields exist in questions
@@ -243,6 +267,7 @@ const PublicFormPage = () => {
     }, []);
 
     const handleInputChange = (fieldId, value) => {
+        handleFormInteraction();
         setFormData(prev => ({
             ...prev,
             [fieldId]: value
@@ -253,6 +278,14 @@ const PublicFormPage = () => {
         e.preventDefault();
         setSubmitting(true);
         setError('');
+
+        if (!attemptIdRef.current && form?.id) {
+            try {
+                await ensureAttemptForForm(form.id);
+            } catch (attemptError) {
+                console.error('Failed to ensure attempt before submit:', attemptError);
+            }
+        }
 
         try {
             // Prepare submission data
@@ -349,7 +382,7 @@ const PublicFormPage = () => {
                     {form.description && <p className="public-form-description">{form.description}</p>}
                 </div>
 
-                <form onSubmit={handleSubmit} className="public-form">
+                <form onSubmit={handleSubmit} className="public-form" onFocusCapture={handleFormInteraction}>
                     {showInfoSection && (
                         <div className="public-form-section">
                             <h3>Your Information</h3>
@@ -460,12 +493,13 @@ const PublicFormPage = () => {
                                                 <option key={i} value={opt}>{opt}</option>
                                             ))}
                                         </select>
-                                    const payload = new FormData();
-                                    payload.append('status', 'abandoned');
-
-                                    try {
-                                        if (navigator.sendBeacon) {
-                                            const ok = navigator.sendBeacon(url, payload);
+                                    ) : (
+                                        <input
+                                            type={field.type || 'text'}
+                                            required={field.required}
+                                            value={formData[key]}
+                                            onChange={(e) => handleInputChange(key, e.target.value)}
+                                            placeholder={`Enter ${field.label.toLowerCase()}`}
                                         />
                                     )}
                                 </div>
