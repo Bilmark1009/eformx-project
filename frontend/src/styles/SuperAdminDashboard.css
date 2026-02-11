@@ -471,21 +471,7 @@ tbody tr:hover {
     padding: 20px;
   }
 
-  /* Mobile Notification Dropdown Fix */
-  .notification-dropdown {
-    position: fixed;
-    /* Break out of relative container */
-    top: 70px;
-    /* Below header approx */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 350px;
-    right: auto;
-    /* Reset right positioning */
-    border: 1px solid #eee;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  }
+
 }
 
 
@@ -789,7 +775,7 @@ tbody tr:hover {
 
 /* Inputs */
 .profile-input {
-  width: 80%;
+  width: 100%;
   padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid #ccc;
