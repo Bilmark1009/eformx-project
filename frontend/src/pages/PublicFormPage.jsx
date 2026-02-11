@@ -15,6 +15,7 @@ const PublicFormPage = () => {
     const [error, setError] = useState('');
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [studentId] = useState(getOrCreateStudentId);
 
     const [hasNameField, setHasNameField] = useState(false);
     const [hasEmailField, setHasEmailField] = useState(false);
@@ -160,9 +161,13 @@ const PublicFormPage = () => {
     };
 
     useEffect(() => {
+        if (!studentId) {
+            return;
+        }
+
         const fetchForm = async () => {
             try {
-                const data = await formService.getPublicForm(id);
+                const data = await formService.getPublicForm(id, studentId);
                 setForm(data);
 
                 reloadGuardKeyRef.current = `form_attempt_reload_${data.id}`;
@@ -213,7 +218,7 @@ const PublicFormPage = () => {
         };
 
         fetchForm();
-    }, [id]);
+    }, [id, studentId]);
 
     useEffect(() => {
         const handleBeforeUnload = () => {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Form;
+use App\Models\FormEngagement;
 use App\Models\User;
 use App\Models\Notification;
 use Illuminate\Http\Request;
@@ -80,7 +81,7 @@ class FormController extends Controller
     /**
      * Display the specified form for public filling (no auth required).
      */
-    public function showPublic($id)
+    public function showPublic(Request $request, $id)
     {
         $form = Form::findOrFail($id);
 
@@ -88,6 +89,9 @@ class FormController extends Controller
         if ($form->status !== 'active') {
             return response()->json(['message' => 'This form is currently inactive and not accepting responses.'], 403);
         }
+
+        // Record a view event for response-rate tracking
+        $this->recordFormView($form, $request->input('student_id'));
 
         // Return only necessary fields for public view
         return response()->json([
@@ -97,6 +101,32 @@ class FormController extends Controller
             'fields' => $form->fields,
             'status' => $form->status,
         ]);
+    }
+
+    private function recordFormView(Form $form, ?string $studentId): void
+    {
+        $now = now();
+
+        // De-dupe by student: refreshes reuse the same row
+        $engagement = FormEngagement::firstOrNew([
+            'form_id' => $form->id,
+            'student_id' => $studentId,
+        ]);
+
+        // If it already exists, don't create extra views; just ensure viewed_at is set
+        if ($engagement->exists) {
+            $engagement->viewed_at = $engagement->viewed_at ?: $now;
+            if ($engagement->status !== 'submitted') {
+                $engagement->status = 'viewed';
+            }
+            $engagement->save();
+            return;
+        }
+
+        // New viewer
+        $engagement->status = 'viewed';
+        $engagement->viewed_at = $now;
+        $engagement->save();
     }
 
     /**
@@ -247,8 +277,8 @@ class FormController extends Controller
         $summarySheet->setCellValue('B2', $form->analytics['totalRespondents'] ?? 0);
         $summarySheet->setCellValue('A3', 'Completion Rate');
         $summarySheet->setCellValue('B3', ($form->analytics['completionRate'] ?? 0) . '%');
-        $summarySheet->setCellValue('A4', 'Recent Activity (7d)');
-        $summarySheet->setCellValue('B4', $form->analytics['recentActivity'] ?? 0);
+        $summarySheet->setCellValue('A4', 'Recent Activity (1h)');
+        $summarySheet->setCellValue('B4', ($form->analytics['recentActivity'] ?? 0) . '%');
 
         // Totals per question for chart
         $summarySheet->setCellValue('A6', 'Question');
