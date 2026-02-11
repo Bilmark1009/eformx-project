@@ -4,6 +4,46 @@ import { FaPlus, FaTrash, FaSave, FaArrowLeft, FaAlignLeft, FaCheckSquare, FaCal
 import formService from "../services/formService";
 import "../styles/FormBuilder.css";
 
+// Floating action button for quickly adding fields at the end
+const AddFieldFab = ({ onAddField }) => {
+    const [open, setOpen] = useState(false);
+
+    const handleChoose = (type) => {
+        onAddField(type);
+        setOpen(false);
+    };
+
+    return (
+        <div className="fab-container">
+            {open && (
+                <div className="fab-menu">
+                    <button type="button" onClick={() => handleChoose("text")}>
+                        <FaAlignLeft />
+                        <span>Text</span>
+                    </button>
+                    <button type="button" onClick={() => handleChoose("multiple-choice")}>
+                        <FaCheckSquare />
+                        <span>Multiple Choice</span>
+                    </button>
+                    <button type="button" onClick={() => handleChoose("date")}>
+                        <FaCalendarAlt />
+                        <span>Date</span>
+                    </button>
+                </div>
+            )}
+
+            <button
+                type="button"
+                className="fab-button"
+                onClick={() => setOpen((v) => !v)}
+                aria-label="Add question"
+            >
+                <FaPlus />
+            </button>
+        </div>
+    );
+};
+
 const FormBuilder = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -402,6 +442,9 @@ const FormBuilder = () => {
                     </div>
                 </div>
             )}
+
+            {/* Floating action button to add fields at the end */}
+            <AddFieldFab onAddField={addField} />
         </div>
     );
 };
