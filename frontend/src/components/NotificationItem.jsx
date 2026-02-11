@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FaTrash } from 'react-icons/fa';
 
 const NotificationItem = ({ notification, onMarkRead, onDelete }) => {
