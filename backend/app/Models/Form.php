@@ -35,16 +35,52 @@ class Form extends Model
         return $this->hasMany(FormResponse::class);
     }
 
+    public function attempts()
+    {
+        return $this->hasMany(FormAttempt::class);
+    }
+
     // Computed analytics attribute
     public function getAnalyticsAttribute()
     {
-        $totalRespondents = $this->responses()->count();
-        $recentActivity = $this->responses()->where('created_at', '>=', now()->subDays(7))->count();
+        $attemptCounts = $this->attempts()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $completedAttempts = $attemptCounts['completed'] ?? 0;
+        $abandonedAttempts = $attemptCounts['abandoned'] ?? 0;
+        $startedAttempts = $attemptCounts['started'] ?? 0;
+
+        // Fallback: if no completed attempts were recorded, use submitted responses as the completed count
+        if ($completedAttempts === 0) {
+            $completedAttempts = $this->responses()->count();
+        }
+        $trackedAttempts = $completedAttempts + $abandonedAttempts;
+
+        $recentActivity = $this->attempts()
+            ->where('created_at', '>=', now()->subDays(7))
+            ->count();
 
         return [
-            'totalRespondents' => $totalRespondents,
-            'completionRate' => $totalRespondents > 0 ? 100 : 0, // Simplified for now
+            'totalRespondents' => $completedAttempts,
+            'completionRate' => $trackedAttempts > 0 ? round(($completedAttempts / $trackedAttempts) * 100, 1) : 0,
             'recentActivity' => $recentActivity,
+            'totalAttempts' => $completedAttempts + $abandonedAttempts + $startedAttempts,
+            'abandonedAttempts' => $abandonedAttempts,
+            'activeStartedAttempts' => $startedAttempts,
+            'trackedAttempts' => $trackedAttempts,
+            'statusBreakdown' => [
+                'started' => [
+                    'count' => $startedAttempts,
+                ],
+                'completed' => [
+                    'count' => $completedAttempts,
+                ],
+                'abandoned' => [
+                    'count' => $abandonedAttempts,
+                ],
+            ],
         ];
     }
 }

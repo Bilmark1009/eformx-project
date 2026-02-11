@@ -22,6 +22,8 @@
     justify-content: space-between;
     gap: 8px;
     min-width: 0;
+    flex-wrap: wrap;
+    /* allow wrapping on very small screens */
 }
 
 .notifications-title {
@@ -35,12 +37,14 @@
 .notifications-actions {
     display: flex;
     gap: 8px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: flex-end;
     margin-left: auto;
     white-space: nowrap;
     flex-shrink: 0;
     align-items: center;
+    gap: 4px;
+    /* Slightly tighter gap on actions */
 }
 
 .notifications-action {
@@ -143,16 +147,78 @@
     color: #ef4444;
 }
 
-/* Specific fix for SA dropdown which might be fixed on mobile */
+/* Specific fix for dropdown which is fixed on mobile */
 @media (max-width: 768px) {
+    /* Center the dropdown for both normal and Super Admin usage */
+    .notifications-dropdown,
     .notifications-dropdown.is-mobile-fixed {
         position: fixed;
-        top: 70px;
+        top: 64px;
+        /* Adjusted topper to align with fixed header height */
         left: 50%;
         transform: translateX(-50%);
-        width: 95%;
-        max-width: 350px;
+        width: 92%;
+        max-width: 400px;
         right: auto;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+        z-index: 3000;
+    }
+
+    .notifications-dropdown-header {
+        padding: 12px;
+    }
+
+    .notifications-title {
+        font-size: 14px;
+    }
+
+    .notifications-actions {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1px dashed #eee;
+    }
+
+    .notifications-item-title {
+        font-size: 12px;
+    }
+}
+
+/* Responsive dropdown header/actions (avoid overflow on small screens) */
+@media (max-width: 640px) {
+    .notifications-dropdown-header {
+        /* Keep title and actions on one horizontal row when possible */
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .notifications-title {
+        white-space: nowrap;
+    }
+
+    .notifications-actions {
+        /* Align actions horizontally with the "Notifications" title */
+        margin-left: 8px;
+        flex: 1 1 auto;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        white-space: normal;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .notifications-action {
+        font-size: 11px;
+        padding: 4px 4px;
+    }
+}
+
+@media (max-width: 360px) {
+    .notifications-action {
+        font-size: 11px;
+        padding: 6px 6px;
     }
 }

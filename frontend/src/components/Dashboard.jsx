@@ -202,14 +202,35 @@ function Dashboard({ onLogout, userEmail, userName }) {
       const selected = forms.find((f) => String(f.id) === String(formId));
       const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
 
+      const apiAnalytics = analyticsData.analytics || {};
+      const completed = apiAnalytics.totalRespondents ?? 0;
+      const abandoned = apiAnalytics.abandonedAttempts ?? 0;
+      const started = apiAnalytics.activeStartedAttempts ?? 0;
+      const tracked = apiAnalytics.trackedAttempts ?? (completed + abandoned);
+      const computedRate = tracked > 0 ? Math.round((completed / tracked) * 1000) / 10 : 0;
+
+      const mergedAnalytics = {
+        totalRespondents: completed,
+        completionRate: apiAnalytics.completionRate ?? computedRate,
+        recentActivity: apiAnalytics.recentActivity ?? 0,
+        totalAttempts: apiAnalytics.totalAttempts ?? (completed + abandoned + started),
+        abandonedAttempts: abandoned,
+        activeStartedAttempts: started,
+        trackedAttempts: tracked,
+        statusBreakdown: apiAnalytics.statusBreakdown || {
+          started: { count: started },
+          completed: { count: completed },
+          abandoned: { count: abandoned },
+        },
+      };
+
+      // Ensure completionRate is derived from form_attempts even if backend payload is stale
+      mergedAnalytics.completionRate = tracked > 0 ? Math.round((completed / tracked) * 1000) / 10 : 0;
+
       setSelectedFormAnalytics({
         id: analyticsData.form_id || formId,
         title: analyticsData.title || (selected?.title) || "Form Analytics",
-        analytics: analyticsData.analytics || {
-          totalRespondents: 0,
-          completionRate: 0,
-          recentActivity: 0
-        },
+        analytics: mergedAnalytics,
         fields: Array.isArray(formFields) ? formFields : [],
         responses: Array.isArray(responses) ? responses : []
       });
@@ -295,16 +316,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   // ===== EXPORTS (ANALYTICS ONLY) =====
-  const handleExportAnalyticsCSV = async () => {
-    if (!selectedFormAnalytics?.id) return;
-    try {
-      const res = await formService.exportAnalyticsCsv(selectedFormAnalytics.id);
-      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.csv`);
-    } catch (err) {
-      console.error("Failed to export analytics CSV", err);
-      alert("Could not export analytics CSV. Please try again.");
-    }
-  };
+
 
   const handleExportAnalyticsXLSX = async () => {
     if (!selectedFormAnalytics?.id) return;
@@ -861,15 +873,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
             <div className="analytics-stats-footer">
               <button
                 className="export-csv-btn"
-                onClick={handleExportAnalyticsCSV}
-              >
-                <FaDownload style={{ marginRight: "8px" }} />
-                Export CSV
-              </button>
-              <button
-                className="export-csv-btn"
                 onClick={handleExportAnalyticsXLSX}
-                style={{ marginLeft: 12 }}
               >
                 <FaDownload style={{ marginRight: "8px" }} />
                 Export XLSX

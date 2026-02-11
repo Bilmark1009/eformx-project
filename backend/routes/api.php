@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FormController;
+use App\Http\Controllers\FormAttemptController;
 use App\Http\Controllers\FormResponseController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SuperAdminController;
@@ -14,6 +15,8 @@ Route::post('/password/forgot', [AuthController::class, 'forgotPassword']);
 Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 Route::get('/forms/{id}/public', [FormController::class, 'showPublic']);
 Route::post('/forms/{formId}/responses', [FormResponseController::class, 'store']);
+Route::post('/forms/{form}/attempts', [FormAttemptController::class, 'store']);
+Route::post('/forms/attempts/{attempt}/status', [FormAttemptController::class, 'updateStatus']);
 
 // Diagnostic route - Test Email
 Route::get('/test-mail', function () {

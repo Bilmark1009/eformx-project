@@ -54,7 +54,7 @@ class FormController extends Controller
         try {
             Notification::create([
                 'title' => 'New form created',
-                'message' => 'Form "'.$form->title.'" was created.',
+                'message' => 'Form "' . $form->title . '" was created.',
                 'type' => 'success',
                 'recipient_user_id' => $user->id,
             ]);
@@ -80,7 +80,7 @@ class FormController extends Controller
     /**
      * Display the specified form for public filling (no auth required).
      */
-    public function showPublic($id)
+    public function showPublic(Request $request, $id)
     {
         $form = Form::findOrFail($id);
 
@@ -88,6 +88,8 @@ class FormController extends Controller
         if ($form->status !== 'active') {
             return response()->json(['message' => 'This form is currently inactive and not accepting responses.'], 403);
         }
+
+        // ...existing code...
 
         // Return only necessary fields for public view
         return response()->json([
@@ -127,7 +129,7 @@ class FormController extends Controller
                 $type = ($status === 'active') ? 'success' : 'warning';
                 Notification::create([
                     'title' => 'Form status changed',
-                    'message' => 'Form "'.$form->title.'" is now '.$status.'.',
+                    'message' => 'Form "' . $form->title . '" is now ' . $status . '.',
                     'type' => $type,
                     'recipient_user_id' => $user->id,
                 ]);
@@ -147,7 +149,19 @@ class FormController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $form = $user->forms()->findOrFail($id);
+        $title = $form->title;
         $form->delete();
+
+        try {
+            Notification::create([
+                'title' => 'Form deleted',
+                'message' => 'Form "' . $title . '" was deleted.',
+                'type' => 'warning',
+                'recipient_user_id' => $user->id,
+            ]);
+        } catch (\Throwable $e) {
+            // swallow notification errors
+        }
 
         return response()->json(['message' => 'Form deleted successfully'], 200);
     }
@@ -235,8 +249,8 @@ class FormController extends Controller
         $summarySheet->setCellValue('B2', $form->analytics['totalRespondents'] ?? 0);
         $summarySheet->setCellValue('A3', 'Completion Rate');
         $summarySheet->setCellValue('B3', ($form->analytics['completionRate'] ?? 0) . '%');
-        $summarySheet->setCellValue('A4', 'Recent Activity (7d)');
-        $summarySheet->setCellValue('B4', $form->analytics['recentActivity'] ?? 0);
+        $summarySheet->setCellValue('A4', 'Recent Activity (1h)');
+        $summarySheet->setCellValue('B4', ($form->analytics['recentActivity'] ?? 0) . '%');
 
         // Totals per question for chart
         $summarySheet->setCellValue('A6', 'Question');
