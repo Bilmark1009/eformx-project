@@ -52,6 +52,11 @@ class Form extends Model
         $completedAttempts = $attemptCounts['completed'] ?? 0;
         $abandonedAttempts = $attemptCounts['abandoned'] ?? 0;
         $startedAttempts = $attemptCounts['started'] ?? 0;
+
+        // Fallback: if no completed attempts were recorded, use submitted responses as the completed count
+        if ($completedAttempts === 0) {
+            $completedAttempts = $this->responses()->count();
+        }
         $trackedAttempts = $completedAttempts + $abandonedAttempts;
 
         $recentActivity = $this->attempts()
@@ -65,6 +70,18 @@ class Form extends Model
             'totalAttempts' => $completedAttempts + $abandonedAttempts + $startedAttempts,
             'abandonedAttempts' => $abandonedAttempts,
             'activeStartedAttempts' => $startedAttempts,
+            'trackedAttempts' => $trackedAttempts,
+            'statusBreakdown' => [
+                'started' => [
+                    'count' => $startedAttempts,
+                ],
+                'completed' => [
+                    'count' => $completedAttempts,
+                ],
+                'abandoned' => [
+                    'count' => $abandonedAttempts,
+                ],
+            ],
         ];
     }
 }
