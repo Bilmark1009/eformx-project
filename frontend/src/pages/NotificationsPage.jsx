@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaArrowLeft, FaCheckDouble, FaTrash, FaBell, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
+import { FaArrowLeft, FaCheckDouble, FaTrash, FaBell, FaExclamationTriangle } from "react-icons/fa";
 import notificationsService from "../services/notificationsService";
 import "../styles/NotificationsPage.css";
 
@@ -102,20 +102,22 @@ const NotificationsPage = () => {
         {notifications.map((n) => (
           <div key={n.id} className={`notifications-page-card ${n.is_read ? "read" : "unread"}`}>
             <div className="notifications-page-item-content">
-              <div className="notifications-page-item-title">{n.title}</div>
+              <div className="notifications-page-item-header">
+                <div className="notifications-page-item-title">{n.title}</div>
+                <div className="notifications-page-item-buttons">
+                  {!n.is_read && (
+                    <button onClick={() => markRead(n.id)} className="btn-icon-link" title="Mark as read">
+                      <FaCheckDouble />
+                    </button>
+                  )}
+                  <button onClick={() => deleteOne(n.id)} className="btn-icon-danger" title="Delete notification">
+                    <FaTrash />
+                  </button>
+                </div>
+              </div>
               <div className="notifications-page-item-message">{n.message}</div>
               <div className="notifications-page-item-meta">
                 <span className="note-type">{n.type || "System"}</span>
-                <div className="notifications-page-item-buttons">
-                  {!n.is_read && (
-                    <button onClick={() => markRead(n.id)} className="btn-link" title="Mark as read">
-                      <FaCheckDouble /> Read
-                    </button>
-                  )}
-                  <button onClick={() => deleteOne(n.id)} className="btn-danger" title="Delete notification">
-                    <FaTrash /> Delete
-                  </button>
-                </div>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaPlus, FaTrash, FaSave, FaArrowLeft, FaAlignLeft, FaCheckSquare, FaCalendarAlt } from "react-icons/fa";
 import formService from "../services/formService";
@@ -14,15 +14,10 @@ const FormBuilder = () => {
     const [fields, setFields] = useState([]);
     const [loading, setLoading] = useState(isEditMode);
     const [saving, setSaving] = useState(false);
+    const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
     const [errors, setErrors] = useState({});
 
-    useEffect(() => {
-        if (isEditMode) {
-            loadForm();
-        }
-    }, [id]);
-
-    const loadForm = async () => {
+    const loadForm = useCallback(async () => {
         try {
             const data = await formService.getForm(id);
             setFormTitle(data.title || "");
@@ -44,7 +39,13 @@ const FormBuilder = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, navigate]);
+
+    useEffect(() => {
+        if (isEditMode) {
+            loadForm();
+        }
+    }, [isEditMode, loadForm]);
 
     const addField = (type) => {
         const newField = {
@@ -137,7 +138,18 @@ const FormBuilder = () => {
     };
 
     const handleSave = async () => {
-        if (!validate()) return;
+        if (!validate()) {
+            setSaving(false);
+            return;
+        }
+
+        setShowSaveConfirmation(true);
+    };
+
+
+
+    const confirmSave = async () => {
+        setShowSaveConfirmation(false);
 
         setSaving(true);
         try {
@@ -177,7 +189,11 @@ const FormBuilder = () => {
                     </div>
                 </div>
                 <div className="builder-actions">
-                    <button className="btn-primary" onClick={handleSave} disabled={saving}>
+                    <button
+                        className="btn-primary"
+                        onClick={handleSave}
+                        disabled={saving}
+                    >
                         <FaSave /> {saving ? "Saving..." : "Save Form"}
                     </button>
                 </div>
@@ -363,6 +379,29 @@ const FormBuilder = () => {
                     </section>
                 </div>
             </main>
+
+            {showSaveConfirmation && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3>Confirm Save</h3>
+                        <p>Are you sure you want to save this form?</p>
+                        <div className="modal-actions">
+                            <button
+                                className="btn-secondary"
+                                onClick={() => setShowSaveConfirmation(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={confirmSave}
+                            >
+                                Confirm Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

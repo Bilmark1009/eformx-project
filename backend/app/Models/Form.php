@@ -36,48 +36,35 @@ class Form extends Model
         return $this->hasMany(FormResponse::class);
     }
 
-    // Relationship to form engagement events (views + submissions)
-    public function engagements()
+    public function attempts()
     {
-        return $this->hasMany(FormEngagement::class);
+        return $this->hasMany(FormAttempt::class);
     }
 
     // Computed analytics attribute
     public function getAnalyticsAttribute()
     {
-        $totalRespondents = $this->responses()->count();
-        $recentActivityCount = $this->responses()
-            ->where('created_at', '>=', now()->subHour())
+        $attemptCounts = $this->attempts()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $completedAttempts = $attemptCounts['completed'] ?? 0;
+        $abandonedAttempts = $attemptCounts['abandoned'] ?? 0;
+        $startedAttempts = $attemptCounts['started'] ?? 0;
+        $trackedAttempts = $completedAttempts + $abandonedAttempts;
+
+        $recentActivity = $this->attempts()
+            ->where('created_at', '>=', now()->subDays(7))
             ->count();
-
-        $totalViews = $this->engagements()->count();
-        $totalSubmissions = $this->engagements()
-            ->where('status', 'submitted')
-            ->count();
-
-        // Fallback to response counts if engagements are not yet populated
-        if ($totalSubmissions === 0 && $totalRespondents > 0) {
-            $totalSubmissions = $totalRespondents;
-        }
-        if ($totalViews === 0 && $totalRespondents > 0) {
-            $totalViews = $totalRespondents;
-        }
-
-        $responseRate = $totalViews > 0
-            ? round(($totalSubmissions / $totalViews) * 100, 2)
-            : 0;
-
-        $recentActivityPercent = $totalRespondents > 0
-            ? round(($recentActivityCount / $totalRespondents) * 100, 2)
-            : 0;
 
         return [
-            'totalRespondents' => $totalRespondents,
-            'completionRate' => $responseRate,
-            'recentActivity' => $recentActivityPercent,
-            'totalViews' => $totalViews,
-            'totalSubmissions' => $totalSubmissions,
-            'responseRate' => $responseRate,
+            'totalRespondents' => $completedAttempts,
+            'completionRate' => $trackedAttempts > 0 ? round(($completedAttempts / $trackedAttempts) * 100, 1) : 0,
+            'recentActivity' => $recentActivity,
+            'totalAttempts' => $completedAttempts + $abandonedAttempts + $startedAttempts,
+            'abandonedAttempts' => $abandonedAttempts,
+            'activeStartedAttempts' => $startedAttempts,
         ];
     }
 }

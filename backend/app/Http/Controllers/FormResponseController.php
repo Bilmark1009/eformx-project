@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Form;
-use App\Models\FormEngagement;
+use App\Models\FormAttempt;
 use App\Models\FormResponse;
 use App\Models\User;
 use App\Models\Notification;
@@ -28,10 +28,28 @@ class FormResponseController extends Controller
             'respondent_name' => 'nullable|string|max:255',
             'respondent_email' => 'nullable|email|max:255',
             'responses' => 'required|array',
-            'student_id' => 'nullable|string|max:255',
+            'attempt_id' => 'nullable|integer|exists:form_attempts,id',
         ]);
 
+        $attemptId = $validated['attempt_id'] ?? null;
+        unset($validated['attempt_id']);
+
         $response = $form->responses()->create($validated);
+
+        if ($attemptId) {
+            $attempt = FormAttempt::where('id', $attemptId)
+                ->where('form_id', $form->id)
+                ->first();
+
+            if ($attempt && $attempt->status !== 'completed') {
+                $attempt->update(['status' => 'completed']);
+            }
+        } else {
+            $form->attempts()->create([
+                'user_id' => optional($request->user())->id,
+                'status' => 'completed',
+            ]);
+        }
 
         // --- Notification Logic ---
 

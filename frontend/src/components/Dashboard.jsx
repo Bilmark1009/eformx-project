@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-import logo from "../assets/eFormX.png";
+
 import headerLogo from "../assets/logoforheader.png";
 import formService from "../services/formService";
 import notificationsService from "../services/notificationsService";
+import NotificationDropdown from "./NotificationDropdown";
+import AnalyticsCharts from "./AnalyticsCharts";
 import authService from "../services/authService";
 import {
   FaBell,
@@ -29,9 +31,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [formToEdit, setFormToEdit] = useState(null);
+
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareLink, setShareLink] = useState("");
@@ -137,36 +137,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
   // ===== MODAL HANDLERS =====
   const openModal = () => navigate("/builder");
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setIsEditMode(false);
-    setFormToEdit(null);
-  };
+
 
   // ===== CREATE / UPDATE =====
-  const handleCreateForm = async (formData) => {
-    try {
-      if (isEditMode) {
-        const updated = await formService.updateForm(formToEdit.id, {
-          ...formData,
-          status: formToEdit.status // Maintain current status on edit
-        });
-        console.log('Updated form data:', updated);
-        setForms(forms.map((f) => (f.id === updated.id ? updated : f)));
-      } else {
-        const created = await formService.createForm({
-          ...formData,
-          status: 'active' // Default status
-        });
-        console.log('Created form data:', created);
-        setForms([created, ...forms]);
-      }
-      closeModal();
-    } catch (err) {
-      console.error("Failed to save form:", err);
-      alert("Failed to save form. Please try again.");
-    }
-  };
+
 
   // ===== EDIT =====
   const handleEditForm = (formId) => {
@@ -224,14 +198,20 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const handleAnalytics = async (formId) => {
     try {
       const analyticsData = await formService.getFormAnalytics(formId) || {};
+      const responses = await formService.getFormResponses(formId);
+      const selected = forms.find((f) => String(f.id) === String(formId));
+      const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
+
       setSelectedFormAnalytics({
         id: analyticsData.form_id || formId,
-        title: analyticsData.title || "Form Analytics",
+        title: analyticsData.title || (selected?.title) || "Form Analytics",
         analytics: analyticsData.analytics || {
           totalRespondents: 0,
           completionRate: 0,
           recentActivity: 0
-        }
+        },
+        fields: Array.isArray(formFields) ? formFields : [],
+        responses: Array.isArray(responses) ? responses : []
       });
       setIsAnalyticsOpen(true);
     } catch (err) {
@@ -541,14 +521,15 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const summarizeResponses = (response) => {
     const entries = normalizeAnswerEntries(response?.responses);
     if (!entries.length) return "No answers";
-    const preview = entries.slice(0, 2).map((entry, idx) => {
+    const preview = entries.slice(0, 3).map((entry, idx) => {
       const label = responseFieldLabelMap[entry.id] || entry.label || `Q${idx + 1}`;
-      return `${label}: ${formatAnswerValue(entry.value, 40)}`;
+      const val = formatAnswerValue(entry.value, 30);
+      return `${label}: ${val}`;
     });
-    if (entries.length > 2) {
-      preview.push(`(+${entries.length - 2} more)`);
+    if (entries.length > 3) {
+      preview.push(`...`);
     }
-    return preview.join(", ");
+    return preview.join(" | ");
   };
 
   const buildFullSummary = (response) => {
@@ -627,51 +608,14 @@ function Dashboard({ onLogout, userEmail, userName }) {
               </span>
             )}
             {showNotifications && (
-              <div className="notifications-dropdown" role="menu" aria-label="Notifications menu">
-                <div className="notifications-dropdown-header">
-                  <span className="notifications-title">Notifications</span>
-                  <div className="notifications-actions">
-                    <button
-                      onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
-                      className="notifications-action notifications-action-primary"
-                    >View all</button>
-                    <button
-                      onClick={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                      className="notifications-action notifications-action-primary"
-                    >Mark all read</button>
-                    <button
-                      onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                      className="notifications-action notifications-action-danger"
-                    >Delete all</button>
-                  </div>
-                </div>
-                <div className="notifications-list">
-                  {notifications.length === 0 ? (
-                    <div className="notifications-empty">No notifications</div>
-                  ) : notifications.map(n => (
-                    <div key={n.id} className={`notifications-item ${n.is_read ? "is-read" : "is-unread"}`}>
-                      <div className="notifications-item-title">{n.title}</div>
-                      <div className="notifications-item-message">{n.message}</div>
-                      <div className="notifications-item-footer">
-                        {!n.is_read && (
-                          <button
-                            onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                            className="notifications-action notifications-action-primary"
-                          >Mark read</button>
-                        )}
-                        <button
-                          onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                          className="notifications-icon-btn notifications-action-danger"
-                          aria-label="Delete notification"
-                          title="Delete notification"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkRead={async (id) => { try { await notificationsService.markRead(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDelete={async (id) => { try { await notificationsService.delete(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onMarkAllRead={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDeleteAll={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onClose={() => setShowNotifications(false)}
+              />
             )}
           </div>
           <div
@@ -901,12 +845,18 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-label">Recent Activity</div>
+                <div className="stat-label">Questions</div>
                 <div className="stat-value">
-                  {selectedFormAnalytics.analytics.recentActivity}
-                  <span className="stat-percentage">%</span>
+                  {selectedFormAnalytics.fields?.length || 0}
                 </div>
               </div>
+            </div>
+
+            <div className="analytics-visuals">
+              <AnalyticsCharts
+                form={selectedFormAnalytics}
+                responses={selectedFormAnalytics.responses}
+              />
             </div>
             <div className="analytics-stats-footer">
               <button
@@ -1027,16 +977,14 @@ function Dashboard({ onLogout, userEmail, userName }) {
             </div>
             <div className="response-detail-list">
               {normalizeAnswerEntries(activeResponseDetail.responses).length === 0 ? (
-                <div className="response-detail-empty">No answers provided.</div>
+                <div className="response-detail-empty">No responses submitted.</div>
               ) : (
                 normalizeAnswerEntries(activeResponseDetail.responses).map((entry, idx) => {
                   const label = responseFieldLabelMap[entry.id] || entry.label || `Question ${idx + 1}`;
                   return (
-                    <div className="response-detail-row" key={`${entry.id || idx}-${idx}`}>
-                      <div className="response-question">Question</div>
-                      <div className="response-question-text">{label}</div>
-                      <div className="response-answer-label">Answer</div>
-                      <div className="response-answer">{formatAnswerValue(entry.value)}</div>
+                    <div className="detail-item-card" key={`${entry.id || idx}-${idx}`}>
+                      <h4 className="detail-question">{label}</h4>
+                      <p className="detail-answer">{formatAnswerValue(entry.value)}</p>
                     </div>
                   );
                 })

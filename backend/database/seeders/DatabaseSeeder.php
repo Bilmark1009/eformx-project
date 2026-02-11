@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperAdminSeeder::class,
             FormSeeder::class,
+            EventRegistrationSeeder::class,
         ]);
     }
 }

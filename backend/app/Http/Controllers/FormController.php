@@ -177,7 +177,19 @@ class FormController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $form = $user->forms()->findOrFail($id);
+        $title = $form->title;
         $form->delete();
+
+        try {
+            Notification::create([
+                'title' => 'Form deleted',
+                'message' => 'Form "'.$title.'" was deleted.',
+                'type' => 'warning',
+                'recipient_user_id' => $user->id,
+            ]);
+        } catch (\Throwable $e) {
+            // swallow notification errors
+        }
 
         return response()->json(['message' => 'Form deleted successfully'], 200);
     }

@@ -1,32 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import formService from '../services/formService';
+import api from '../services/api';
 import '../styles/PublicFormPage.css';
 import logo from '../assets/eFormX.png';
 
-const STUDENT_ID_STORAGE_KEY = 'eformx_student_id';
-
-const getOrCreateStudentId = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    try {
-        let existing = localStorage.getItem(STUDENT_ID_STORAGE_KEY);
-        if (!existing) {
-            const randomPart =
-                typeof crypto !== 'undefined' && crypto.randomUUID
-                    ? crypto.randomUUID()
-                    : Math.random().toString(36).substring(2, 12);
-            existing = `student_${randomPart}`;
-            localStorage.setItem(STUDENT_ID_STORAGE_KEY, existing);
-        }
-        return existing;
-    } catch (err) {
-        console.error('Failed to access localStorage for student id', err);
-        return null;
-    }
-};
+const attemptCreationPromises = new Map();
 
 const PublicFormPage = () => {
     const { id } = useParams();
@@ -38,6 +17,149 @@ const PublicFormPage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [studentId] = useState(getOrCreateStudentId);
 
+    const [hasNameField, setHasNameField] = useState(false);
+    const [hasEmailField, setHasEmailField] = useState(false);
+    const attemptIdRef = useRef(null);
+    const hasSubmittedRef = useRef(false);
+    const sessionKeyRef = useRef(null);
+    const reloadGuardKeyRef = useRef(null);
+
+    const loadAttemptFromSession = (formId) => {
+        const key = `form_attempt_${formId}`;
+        sessionKeyRef.current = key;
+        try {
+            const raw = sessionStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.attemptId) {
+                return parsed.attemptId;
+            }
+        } catch (e) {
+            console.warn('Failed to parse stored attempt id', e);
+        }
+        return null;
+    };
+
+    const storeAttemptInSession = (attemptId) => {
+        if (!sessionKeyRef.current) return;
+        try {
+            sessionStorage.setItem(sessionKeyRef.current, JSON.stringify({ attemptId }));
+        } catch (e) {
+            console.warn('Failed to persist attempt id', e);
+        }
+    };
+
+    const clearAttemptFromSession = () => {
+        if (!sessionKeyRef.current) return;
+        sessionStorage.removeItem(sessionKeyRef.current);
+    };
+
+    const setReloadGuard = () => {
+        if (!reloadGuardKeyRef.current) return;
+        try {
+            sessionStorage.setItem(reloadGuardKeyRef.current, '1');
+        } catch (e) {
+            // swallow
+        }
+    };
+
+    const clearReloadGuard = () => {
+        if (!reloadGuardKeyRef.current) return;
+        try {
+            sessionStorage.removeItem(reloadGuardKeyRef.current);
+        } catch (e) {
+            // swallow
+        }
+    };
+
+    const ensureAttemptForForm = async (formId) => {
+        const storedAttemptId = loadAttemptFromSession(formId);
+        if (storedAttemptId) {
+            attemptIdRef.current = storedAttemptId;
+            return storedAttemptId;
+        }
+
+        if (attemptCreationPromises.has(formId)) {
+            const existingPromise = attemptCreationPromises.get(formId);
+            const attemptId = await existingPromise;
+            attemptIdRef.current = attemptId;
+            return attemptId;
+        }
+
+        const creationPromise = (async () => {
+            const attempt = await formService.startFormAttempt(formId);
+            storeAttemptInSession(attempt.attempt_id);
+            return attempt.attempt_id;
+        })();
+
+        attemptCreationPromises.set(formId, creationPromise);
+
+        try {
+            const attemptId = await creationPromise;
+            attemptIdRef.current = attemptId;
+            return attemptId;
+        } finally {
+            attemptCreationPromises.delete(formId);
+        }
+    };
+
+    const isReloadNavigation = () => {
+        const navEntries = performance.getEntriesByType('navigation');
+        if (!navEntries || navEntries.length === 0) return false;
+        return navEntries[0].type === 'reload';
+    };
+
+    const sendAbandonmentBeacon = () => {
+        if (!attemptIdRef.current || hasSubmittedRef.current) {
+            return;
+        }
+
+        // Avoid marking as abandoned on reloads; we keep the attempt alive for the session.
+        if (isReloadNavigation()) {
+            setTimeout(clearReloadGuard, 0);
+            return;
+        }
+
+        // Also skip if a reload guard was set during beforeunload (persists across reloads in sessionStorage).
+        if (reloadGuardKeyRef.current && sessionStorage.getItem(reloadGuardKeyRef.current)) {
+            setTimeout(clearReloadGuard, 0);
+            return;
+        }
+
+        const baseUrl = (api.defaults?.baseURL || process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
+        if (!baseUrl) {
+            return;
+        }
+
+        const url = `${baseUrl}/forms/attempts/${attemptIdRef.current}/status`;
+
+        // Prefer sendBeacon with FormData; if unavailable or fails, fall back to fetch with keepalive.
+        try {
+            const payload = new FormData();
+            payload.append('status', 'abandoned');
+            if (navigator.sendBeacon) {
+                const payload = new FormData();
+                const ok = navigator.sendBeacon(url, payload);
+                if (ok) return;
+            }
+        } catch (e) {
+            // fall through to fetch
+        }
+
+        try {
+            fetch(url, {
+                method: 'POST',
+                body: payload,
+                keepalive: true,
+                credentials: 'include',
+            }).catch(() => {});
+        } catch (e) {
+            // swallow
+        }
+
+        setTimeout(clearReloadGuard, 0);
+    };
+
     useEffect(() => {
         if (!studentId) {
             return;
@@ -47,6 +169,29 @@ const PublicFormPage = () => {
             try {
                 const data = await formService.getPublicForm(id, studentId);
                 setForm(data);
+
+                reloadGuardKeyRef.current = `form_attempt_reload_${data.id}`;
+                clearReloadGuard();
+
+                try {
+                    await ensureAttemptForForm(data.id);
+                } catch (attemptError) {
+                    console.error('Failed to start form attempt:', attemptError);
+                }
+
+                // Detect if Name or Email fields exist in questions
+                let nameFieldExists = false;
+                let emailFieldExists = false;
+
+                if (data.fields && Array.isArray(data.fields)) {
+                    data.fields.forEach(field => {
+                        const label = field.label?.toLowerCase().trim();
+                        if (label === 'full name' || label === 'name') nameFieldExists = true;
+                        if (label === 'email address' || label === 'email') emailFieldExists = true;
+                    });
+                }
+                setHasNameField(nameFieldExists);
+                setHasEmailField(emailFieldExists);
 
                 // Initialize form data with empty strings for all fields
                 const initialData = {
@@ -75,6 +220,28 @@ const PublicFormPage = () => {
         fetchForm();
     }, [id, studentId]);
 
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            setReloadGuard();
+            sendAbandonmentBeacon();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                sendAbandonmentBeacon();
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            sendAbandonmentBeacon();
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
     const handleInputChange = (fieldId, value) => {
         setFormData(prev => ({
             ...prev,
@@ -89,18 +256,47 @@ const PublicFormPage = () => {
 
         try {
             // Prepare submission data
+            let finalRespondentName = formData.respondent_name;
+            let finalRespondentEmail = formData.respondent_email;
+
+            // If we have redundant fields, use their values for the required respondent info
+            if (form.fields && Array.isArray(form.fields)) {
+                form.fields.forEach(field => {
+                    const label = field.label?.toLowerCase().trim();
+                    const key = field.id || field.label;
+                    if ((label === 'full name' || label === 'name') && !finalRespondentName) {
+                        finalRespondentName = formData[key];
+                    }
+                    if ((label === 'email address' || label === 'email') && !finalRespondentEmail) {
+                        finalRespondentEmail = formData[key];
+                    }
+                });
+            }
+
             const submission = {
-                respondent_name: formData.respondent_name,
-                respondent_email: formData.respondent_email,
-                responses: { ...formData },
-                student_id: studentId,
+                respondent_name: finalRespondentName,
+                respondent_email: finalRespondentEmail,
+                responses: { ...formData }
             };
 
             // Remove meta fields from responses object
             delete submission.responses.respondent_name;
             delete submission.responses.respondent_email;
 
+            if (attemptIdRef.current) {
+                submission.attempt_id = attemptIdRef.current;
+            }
+
             await formService.submitResponse(id, submission);
+            hasSubmittedRef.current = true;
+            if (attemptIdRef.current) {
+                try {
+                    await formService.updateFormAttemptStatus(attemptIdRef.current, 'completed');
+                } catch (statusError) {
+                    console.error('Failed to mark attempt as completed:', statusError);
+                }
+            }
+            clearAttemptFromSession();
             setSubmitted(true);
         } catch (err) {
             console.error('Error submitting form:', err);
@@ -139,6 +335,8 @@ const PublicFormPage = () => {
         );
     }
 
+    const showInfoSection = !hasNameField || !hasEmailField;
+
     return (
         <div className="public-form-container">
             <div className="public-form-header">
@@ -152,29 +350,35 @@ const PublicFormPage = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="public-form">
-                    <div className="public-form-section">
-                        <h3>Your Information</h3>
-                        <div className="public-form-group">
-                            <label>Full Name *</label>
-                            <input
-                                type="text"
-                                required
-                                value={formData.respondent_name}
-                                onChange={(e) => handleInputChange('respondent_name', e.target.value)}
-                                placeholder="Enter your full name"
-                            />
+                    {showInfoSection && (
+                        <div className="public-form-section">
+                            <h3>Your Information</h3>
+                            {!hasNameField && (
+                                <div className="public-form-group">
+                                    <label>Full Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.respondent_name}
+                                        onChange={(e) => handleInputChange('respondent_name', e.target.value)}
+                                        placeholder="Enter your full name"
+                                    />
+                                </div>
+                            )}
+                            {!hasEmailField && (
+                                <div className="public-form-group">
+                                    <label>Email Address *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={formData.respondent_email}
+                                        onChange={(e) => handleInputChange('respondent_email', e.target.value)}
+                                        placeholder="Enter your email"
+                                    />
+                                </div>
+                            )}
                         </div>
-                        <div className="public-form-group">
-                            <label>Email Address *</label>
-                            <input
-                                type="email"
-                                required
-                                value={formData.respondent_email}
-                                onChange={(e) => handleInputChange('respondent_email', e.target.value)}
-                                placeholder="Enter your email"
-                            />
-                        </div>
-                    </div>
+                    )}
 
                     <div className="public-form-section">
                         <h3>Questions</h3>
@@ -214,7 +418,7 @@ const PublicFormPage = () => {
                                     handleInputChange(key, next);
                                 };
                                 return (
-                                    <div key={index} className="form-group">
+                                    <div key={index} className="public-form-group">
                                         <label>{field.label} {labelReq}</label>
                                         <div className="options-group">
                                             {options.map((opt, i) => (
@@ -236,7 +440,7 @@ const PublicFormPage = () => {
 
                             // Non-multiple-choice inputs
                             return (
-                                <div key={index} className="form-group">
+                                <div key={index} className="public-form-group">
                                     <label>{field.label} {labelReq}</label>
                                     {field.type === 'textarea' ? (
                                         <textarea
@@ -256,13 +460,12 @@ const PublicFormPage = () => {
                                                 <option key={i} value={opt}>{opt}</option>
                                             ))}
                                         </select>
-                                    ) : (
-                                        <input
-                                            type={field.type || 'text'}
-                                            required={field.required}
-                                            value={formData[key]}
-                                            onChange={(e) => handleInputChange(key, e.target.value)}
-                                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                                    const payload = new FormData();
+                                    payload.append('status', 'abandoned');
+
+                                    try {
+                                        if (navigator.sendBeacon) {
+                                            const ok = navigator.sendBeacon(url, payload);
                                         />
                                     )}
                                 </div>

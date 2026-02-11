@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import "../styles/SuperAdminDashboard.css";
 import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera, FaUsers, FaFileAlt, FaCheckCircle, FaUserShield } from "react-icons/fa";
 import CreateAccountModal from "./CreateAccountModal";
@@ -8,6 +7,7 @@ import authService from "../services/authService";
 import userService from "../services/userService";
 import { FaSearch } from "react-icons/fa";
 import notificationsService from "../services/notificationsService";
+import NotificationDropdown from "./NotificationDropdown";
 import {
   PieChart,
   Pie,
@@ -18,6 +18,8 @@ import {
 } from 'recharts';
 
 const COLORS = ['#1a5f6f', '#5a8a96', '#ffbb28', '#ff8042', '#0f4c5c', '#8884d8'];
+
+
 
 function SuperAdminDashboard({ onLogout }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,7 +40,6 @@ function SuperAdminDashboard({ onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
-  const navigate = useNavigate();
 
 
   // Load accounts from backend on mount
@@ -308,49 +309,15 @@ function SuperAdminDashboard({ onLogout }) {
               }}>{unreadCount}</span>
             )}
             {showNotifications && (
-              <div className="notification-dropdown">
-                <div style={{ padding: 8, borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 600 }}>Notifications</span>
-                  <button
-                    onClick={async () => {
-                      try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { }
-                    }}
-                    style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer" }}
-                  >Mark all read</button>
-                  <button
-                    onClick={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 8 }}
-                  >Delete all</button>
-                </div>
-                <button
-                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
-                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "#f9fafb", border: "none", borderBottom: "1px solid #eee", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
-                >View all</button>
-                <div className="notification-list">
-                  {notifications.length === 0 ? (
-                    <div style={{ padding: 12, color: "#6b7280" }}>No notifications</div>
-                  ) : notifications.map(n => (
-                    <div key={n.id} style={{ padding: 12, borderBottom: "1px solid #f3f4f6", background: n.is_read ? "#fff" : "#f9fafb" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
-                      <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>{n.message}</div>
-                      {!n.is_read && (
-                        <button
-                          onClick={async () => { try { await notificationsService.markRead(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                          style={{ marginTop: 6, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12 }}
-                        >Mark read</button>
-                      )}
-                      <button
-                        onClick={async () => { try { await notificationsService.delete(n.id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
-                        style={{ marginTop: 6, background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, marginLeft: 12, display: "inline-flex", alignItems: "center" }}
-                        aria-label="Delete notification"
-                        title="Delete notification"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkRead={async (id) => { try { await notificationsService.markRead(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDelete={async (id) => { try { await notificationsService.delete(id); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onMarkAllRead={async () => { try { await notificationsService.markAllRead(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onDeleteAll={async () => { try { await notificationsService.deleteAll(); const items = await notificationsService.list(); setNotifications(items); } catch { } }}
+                onClose={() => setShowNotifications(false)}
+                isSuperAdmin={true}
+              />
             )}
           </div>
           <div
