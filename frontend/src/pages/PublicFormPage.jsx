@@ -115,11 +115,13 @@ const PublicFormPage = () => {
 
         // Avoid marking as abandoned on reloads; we keep the attempt alive for the session.
         if (isReloadNavigation()) {
+            setTimeout(clearReloadGuard, 0);
             return;
         }
 
         // Also skip if a reload guard was set during beforeunload (persists across reloads in sessionStorage).
         if (reloadGuardKeyRef.current && sessionStorage.getItem(reloadGuardKeyRef.current)) {
+            setTimeout(clearReloadGuard, 0);
             return;
         }
 
@@ -132,9 +134,10 @@ const PublicFormPage = () => {
 
         // Prefer sendBeacon with FormData; if unavailable or fails, fall back to fetch with keepalive.
         try {
+            const payload = new FormData();
+            payload.append('status', 'abandoned');
             if (navigator.sendBeacon) {
                 const payload = new FormData();
-                payload.append('status', 'abandoned');
                 const ok = navigator.sendBeacon(url, payload);
                 if (ok) return;
             }
@@ -145,14 +148,15 @@ const PublicFormPage = () => {
         try {
             fetch(url, {
                 method: 'POST',
-                body: new URLSearchParams({ status: 'abandoned' }),
+                body: payload,
                 keepalive: true,
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 credentials: 'include',
             }).catch(() => {});
         } catch (e) {
             // swallow
         }
+
+        setTimeout(clearReloadGuard, 0);
     };
 
     useEffect(() => {
@@ -451,13 +455,12 @@ const PublicFormPage = () => {
                                                 <option key={i} value={opt}>{opt}</option>
                                             ))}
                                         </select>
-                                    ) : (
-                                        <input
-                                            type={field.type || 'text'}
-                                            required={field.required}
-                                            value={formData[key]}
-                                            onChange={(e) => handleInputChange(key, e.target.value)}
-                                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                                    const payload = new FormData();
+                                    payload.append('status', 'abandoned');
+
+                                    try {
+                                        if (navigator.sendBeacon) {
+                                            const ok = navigator.sendBeacon(url, payload);
                                         />
                                     )}
                                 </div>
