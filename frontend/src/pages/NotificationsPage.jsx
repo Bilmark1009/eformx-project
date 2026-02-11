@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaArrowLeft, FaCheckDouble, FaTrash, FaBell, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
+import { FaArrowLeft, FaCheckDouble, FaTrash, FaBell, FaExclamationTriangle } from "react-icons/fa";
 import notificationsService from "../services/notificationsService";
 import "../styles/NotificationsPage.css";
 

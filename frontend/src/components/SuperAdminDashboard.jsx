@@ -9,7 +9,6 @@ import userService from "../services/userService";
 import { FaSearch } from "react-icons/fa";
 import notificationsService from "../services/notificationsService";
 import NotificationDropdown from "./NotificationDropdown";
-import NotificationItem from "./NotificationItem";
 import {
   PieChart,
   Pie,
@@ -42,7 +41,6 @@ function SuperAdminDashboard({ onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
-  const navigate = useNavigate();
 
 
   // Load accounts from backend on mount

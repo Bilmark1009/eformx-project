@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 
 const NotificationItem = ({ notification, onMarkRead, onDelete }) => {
-    const [isHovered, setIsHovered] = useState(false);
 
     return (
         <div
             className={`notifications-item ${notification.is_read ? 'is-read' : 'is-unread'}`}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
             <div className="notifications-item-header">
                 <div className="notifications-item-title">{notification.title}</div>

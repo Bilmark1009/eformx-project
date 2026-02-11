@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaPlus, FaTrash, FaSave, FaArrowLeft, FaAlignLeft, FaCheckSquare, FaCalendarAlt } from "react-icons/fa";
 import formService from "../services/formService";
@@ -17,13 +17,7 @@ const FormBuilder = () => {
     const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
     const [errors, setErrors] = useState({});
 
-    useEffect(() => {
-        if (isEditMode) {
-            loadForm();
-        }
-    }, [id]);
-
-    const loadForm = async () => {
+    const loadForm = useCallback(async () => {
         try {
             const data = await formService.getForm(id);
             setFormTitle(data.title || "");
@@ -45,7 +39,13 @@ const FormBuilder = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, navigate]);
+
+    useEffect(() => {
+        if (isEditMode) {
+            loadForm();
+        }
+    }, [isEditMode, loadForm]);
 
     const addField = (type) => {
         const newField = {
