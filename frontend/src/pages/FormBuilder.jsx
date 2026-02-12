@@ -496,7 +496,7 @@ const FormBuilder = () => {
                                 className="btn-secondary"
                                 onClick={() => setShowLeaveConfirmation(false)}
                             >
-                                Stay on this page
+                                Cancel
                             </button>
                             <button
                                 className="btn-primary"
@@ -506,7 +506,7 @@ const FormBuilder = () => {
                                     navigate("/dashboard");
                                 }}
                             >
-                                Leave without saving
+                                Discard
                             </button>
                         </div>
                     </div>

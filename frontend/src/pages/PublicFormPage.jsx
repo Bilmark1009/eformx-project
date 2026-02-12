@@ -376,12 +376,16 @@ const PublicFormPage = () => {
     }
 
     if (error) {
+        const is404Error = error.includes('no longer available') || error.includes('not exist');
         return (
             <div className="public-form-error-container">
                 <div className="error-card">
-                    <h2>Oops!</h2>
+                    <div className="error-icon">⚠️</div>
+                    <h2>Form Unavailable</h2>
                     <p>{error}</p>
-                    <button onClick={() => window.location.reload()}>Try Again</button>
+                    {!is404Error && (
+                        <button onClick={() => window.location.reload()}>Try Again</button>
+                    )}
                 </div>
             </div>
         );
@@ -413,6 +417,13 @@ const PublicFormPage = () => {
                     <h1>{form.title}</h1>
                     {form.description && <p className="public-form-description">{form.description}</p>}
                 </div>
+
+                {error && (
+                    <div className="public-form-error">
+                        <span className="error-icon">⚠️</span>
+                        <span>{error}</span>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="public-form" onFocusCapture={handleFormInteraction}>
                     {showInfoSection && (
@@ -494,11 +505,29 @@ const PublicFormPage = () => {
                                                         value={opt}
                                                         checked={currentArr.includes(opt)}
                                                         onChange={() => toggleCheckbox(opt)}
+                                                        required={field.required && currentArr.length === 0}
                                                     />
                                                     <span>{opt}</span>
                                                 </label>
                                             ))}
                                         </div>
+                                        {/* Hidden input for browser validation */}
+                                        {field.required && (
+                                            <input
+                                                type="text"
+                                                required
+                                                value={currentArr.length > 0 ? 'valid' : ''}
+                                                onChange={() => { }}
+                                                style={{
+                                                    position: 'absolute',
+                                                    opacity: 0,
+                                                    height: 0,
+                                                    width: 0,
+                                                    pointerEvents: 'none'
+                                                }}
+                                                tabIndex={-1}
+                                            />
+                                        )}
                                     </div>
                                 );
                             }
