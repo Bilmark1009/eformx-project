@@ -56,6 +56,8 @@ const FormBuilder = () => {
     const [saving, setSaving] = useState(false);
     const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
     const [errors, setErrors] = useState({});
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
 
     const loadForm = useCallback(async () => {
         try {
@@ -72,6 +74,7 @@ const FormBuilder = () => {
                 }
             }
             setFields(Array.isArray(fieldsData) ? fieldsData : []);
+            setHasUnsavedChanges(false);
         } catch (err) {
             console.error("Failed to load form:", err);
             alert("Error loading form data.");
@@ -87,6 +90,29 @@ const FormBuilder = () => {
         }
     }, [isEditMode, loadForm]);
 
+    // Warn when closing tab / browser with unsaved changes
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (!hasUnsavedChanges) return;
+            e.preventDefault();
+            // Chrome requires returnValue to be set
+            e.returnValue = "";
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [hasUnsavedChanges]);
+
+    const handleTitleChange = (e) => {
+        setFormTitle(e.target.value);
+        setHasUnsavedChanges(true);
+    };
+
+    const handleDescriptionChange = (e) => {
+        setFormDescription(e.target.value);
+        setHasUnsavedChanges(true);
+    };
+
     const addField = (type) => {
         const newField = {
             id: Date.now(),
@@ -99,14 +125,17 @@ const FormBuilder = () => {
         };
         setFields([...fields, newField]);
         setErrors({ ...errors, fields: null });
+        setHasUnsavedChanges(true);
     };
 
     const updateField = (fieldId, updates) => {
         setFields(fields.map(f => f.id === fieldId ? { ...f, ...updates } : f));
+        setHasUnsavedChanges(true);
     };
 
     const removeField = (fieldId) => {
         setFields(fields.filter(f => f.id !== fieldId));
+        setHasUnsavedChanges(true);
     };
 
     const addOption = (fieldId) => {
@@ -116,6 +145,7 @@ const FormBuilder = () => {
             }
             return f;
         }));
+        setHasUnsavedChanges(true);
     };
 
     const updateOption = (fieldId, index, value) => {
@@ -127,6 +157,7 @@ const FormBuilder = () => {
             }
             return f;
         }));
+        setHasUnsavedChanges(true);
     };
 
     const removeOption = (fieldId, index) => {
@@ -136,6 +167,7 @@ const FormBuilder = () => {
             }
             return f;
         }));
+        setHasUnsavedChanges(true);
     };
 
     const validate = () => {
@@ -205,6 +237,7 @@ const FormBuilder = () => {
             } else {
                 await formService.createForm(formData);
             }
+            setHasUnsavedChanges(false);
             navigate("/dashboard");
         } catch (err) {
             console.error("Failed to save form:", err);
@@ -220,7 +253,17 @@ const FormBuilder = () => {
         <div className="builder-container">
             <header className="builder-header">
                 <div className="header-left">
-                    <button className="exit-btn" onClick={() => navigate("/dashboard")} title="Back to Dashboard">
+                    <button
+                        className="exit-btn"
+                        onClick={() => {
+                            if (hasUnsavedChanges) {
+                                setShowLeaveConfirmation(true);
+                            } else {
+                                navigate("/dashboard");
+                            }
+                        }}
+                        title="Back to Dashboard"
+                    >
                         <FaArrowLeft />
                     </button>
                     <div className="builder-title-section">
@@ -278,7 +321,7 @@ const FormBuilder = () => {
                                 className="title-input"
                                 placeholder="e.g. Customer Satisfaction Survey"
                                 value={formTitle}
-                                onChange={(e) => setFormTitle(e.target.value)}
+                                onChange={handleTitleChange}
                                 autoFocus
                             />
                             {errors.title && <span className="error-msg">{errors.title}</span>}
@@ -290,7 +333,7 @@ const FormBuilder = () => {
                                 placeholder="Provide context for your respondents..."
                                 rows="2"
                                 value={formDescription}
-                                onChange={(e) => setFormDescription(e.target.value)}
+                                onChange={handleDescriptionChange}
                             />
                             {errors.description && <span className="error-msg">{errors.description}</span>}
                         </div>
@@ -437,6 +480,33 @@ const FormBuilder = () => {
                                 onClick={confirmSave}
                             >
                                 Confirm Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showLeaveConfirmation && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3>Discard changes?</h3>
+                        <p>You have unsaved changes. If you go back now, your edits will be lost.</p>
+                        <div className="modal-actions">
+                            <button
+                                className="btn-secondary"
+                                onClick={() => setShowLeaveConfirmation(false)}
+                            >
+                                Stay on this page
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={() => {
+                                    setShowLeaveConfirmation(false);
+                                    setHasUnsavedChanges(false);
+                                    navigate("/dashboard");
+                                }}
+                            >
+                                Leave without saving
                             </button>
                         </div>
                     </div>
