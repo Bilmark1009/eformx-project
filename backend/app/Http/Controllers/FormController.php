@@ -82,23 +82,29 @@ class FormController extends Controller
      */
     public function showPublic(Request $request, $id)
     {
-        $form = Form::findOrFail($id);
+        try {
+            $form = Form::findOrFail($id);
 
-        // Only allow active forms to be viewed publicly
-        if ($form->status !== 'active') {
-            return response()->json(['message' => 'This form is currently inactive and not accepting responses.'], 403);
+            // Only allow active forms to be viewed publicly
+            if ($form->status !== 'active') {
+                return response()->json(['message' => 'This form is currently inactive and not accepting responses.'], 403);
+            }
+
+            // ...existing code...
+
+            // Return only necessary fields for public view
+            return response()->json([
+                'id' => $form->id,
+                'title' => $form->title,
+                'description' => $form->description,
+                'fields' => $form->fields,
+                'status' => $form->status,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'This form is no longer available. It may have been deleted or the link is incorrect.'
+            ], 404);
         }
-
-        // ...existing code...
-
-        // Return only necessary fields for public view
-        return response()->json([
-            'id' => $form->id,
-            'title' => $form->title,
-            'description' => $form->description,
-            'fields' => $form->fields,
-            'status' => $form->status,
-        ]);
     }
 
     /**
