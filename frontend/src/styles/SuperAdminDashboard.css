@@ -13,18 +13,69 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
+  gap: 12px;
 }
 
 .sa-logo {
   font-size: 22px;
   font-weight: bold;
+  min-width: 0;
 }
 
 .sa-right {
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+/* Notification bell: larger icon and tap target, especially on mobile */
+.sa-notif-bell-wrap {
+  position: relative;
+}
+
+.sa-notif-bell-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sa-notif-bell-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sa-notif-bell-icon {
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.sa-notif-bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .profile {
@@ -156,6 +207,8 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  text-align: center;
   flex: 1;
   /* Take up available space */
 }
@@ -359,7 +412,6 @@ tbody tr:hover {
 /* Tablet */
 @media (max-width: 992px) {
 
-  .sa-header,
   .page-title,
   .table-card {
     margin-left: 20px;
@@ -379,16 +431,40 @@ tbody tr:hover {
 @media (max-width: 768px) {
 
   .sa-header {
-    /* Keep single row */
     flex-direction: row;
     align-items: center;
+    flex-wrap: nowrap;
     gap: 10px;
     padding: 12px 16px;
+  }
+
+  .sa-logo {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .sa-right {
     width: auto;
     justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .sa-notif-bell-btn {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px;
+  }
+
+  .sa-notif-bell-icon {
+    font-size: 1.5rem;
+  }
+
+  .sa-notif-bell-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 12px;
+    top: 2px;
+    right: 2px;
   }
 
   .page-title {
@@ -477,16 +553,23 @@ tbody tr:hover {
 
 @media (max-width: 480px) {
 
+  .sa-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
   .sa-logo {
     font-size: 18px;
   }
 
   .logo-img {
-    height: 28px;
+    height: 26px;
+    max-width: 120px;
+    object-fit: contain;
   }
 
-  .header-bell-icon {
-    font-size: 16px;
+  .sa-right {
+    gap: 6px;
   }
 
   .profile span {
@@ -494,8 +577,8 @@ tbody tr:hover {
   }
 
   .header-profile-pic {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
   }
 
   .page-title h2 {
@@ -694,6 +777,7 @@ tbody tr:hover {
 .logo-img {
   height: 40px;
   width: auto;
+  max-width: 100%;
   object-fit: contain;
 }
 
@@ -701,18 +785,6 @@ tbody tr:hover {
 @media (max-width: 768px) {
   .logo-img {
     height: 32px;
-  }
-}
-
-/* Mobile */
-@media (max-width: 480px) {
-  .logo-img {
-    height: 26px;
-  }
-
-  .profile span {
-    display: flex;
-    /* or inline-flex */
   }
 }
 
