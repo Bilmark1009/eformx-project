@@ -59,21 +59,25 @@ function SuperAdminDashboard({ onLogout }) {
       setShowNotifications(false);
     };
 
-    const handleAnyScroll = () => {
+    const handleScrollOrWheel = (event) => {
+      const anchor = notificationsAnchorRef.current;
+      if (!anchor) return;
+      // If user is scrolling inside the dropdown (or on the bell), don't close
+      if (anchor.contains(event.target)) return;
       setShowNotifications(false);
     };
 
     document.addEventListener("mousedown", handlePointerDown, true);
     document.addEventListener("touchstart", handlePointerDown, true);
-    // Close on scroll/wheel anywhere (page, nested containers, etc.)
-    window.addEventListener("scroll", handleAnyScroll, true);
-    window.addEventListener("wheel", handleAnyScroll, true);
+    // Close only when scrolling outside the dropdown; scrolling inside the list keeps it open
+    window.addEventListener("scroll", handleScrollOrWheel, true);
+    window.addEventListener("wheel", handleScrollOrWheel, true);
 
     return () => {
       document.removeEventListener("mousedown", handlePointerDown, true);
       document.removeEventListener("touchstart", handlePointerDown, true);
-      window.removeEventListener("scroll", handleAnyScroll, true);
-      window.removeEventListener("wheel", handleAnyScroll, true);
+      window.removeEventListener("scroll", handleScrollOrWheel, true);
+      window.removeEventListener("wheel", handleScrollOrWheel, true);
     };
   }, [showNotifications]);
 
@@ -359,20 +363,18 @@ function SuperAdminDashboard({ onLogout }) {
         </div>
 
         <div className="sa-right">
-          <div ref={notificationsAnchorRef} style={{ position: "relative" }}>
-            <FaBell className="icon" onClick={() => setShowNotifications(v => !v)} style={{ cursor: "pointer" }} />
-            {unreadCount > 0 && (
-              <span style={{
-                position: "absolute",
-                top: -6,
-                right: -6,
-                background: "#ef4444",
-                color: "#fff",
-                borderRadius: "9999px",
-                fontSize: 12,
-                padding: "2px 6px"
-              }}>{unreadCount}</span>
-            )}
+          <div ref={notificationsAnchorRef} className="sa-notif-bell-wrap">
+            <button
+              type="button"
+              className="sa-notif-bell-btn"
+              onClick={() => setShowNotifications(v => !v)}
+              aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+            >
+              <FaBell className="sa-notif-bell-icon" aria-hidden />
+              {unreadCount > 0 && (
+                <span className="sa-notif-bell-badge">{unreadCount}</span>
+              )}
+            </button>
             {showNotifications && (
               <NotificationDropdown
                 notifications={notifications}

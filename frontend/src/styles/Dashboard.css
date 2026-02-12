@@ -115,7 +115,52 @@ body {
   text-align: center;
 }
 
+/* Notification bell button: larger tap target, badge inside (same pattern as SuperAdminDashboard) */
+.dashboard-notif-bell-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-light, #374151);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: var(--transition, 0.2s ease);
+  -webkit-tap-highlight-color: transparent;
+}
 
+.dashboard-notif-bell-btn:hover {
+  transform: scale(1.1);
+  opacity: 0.9;
+}
+
+.dashboard-notif-bell-icon {
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.dashboard-notif-bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-sizing: border-box;
+}
 
 .admin-profile {
   display: flex;
@@ -679,6 +724,24 @@ body {
 
   .icon-bell {
     font-size: 18px;
+  }
+
+  .dashboard-notif-bell-btn {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px;
+  }
+
+  .dashboard-notif-bell-icon {
+    font-size: 1.5rem;
+  }
+
+  .dashboard-notif-bell-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 12px;
+    top: 2px;
+    right: 2px;
   }
 
   .profile-avatar {
@@ -2370,6 +2433,16 @@ body {
 
   .notifications {
     margin-right: 6px;
+  }
+
+  .dashboard-notif-bell-btn {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px;
+  }
+
+  .dashboard-notif-bell-icon {
+    font-size: 1.5rem;
   }
 
   /* On very small screens, show notifications as a full-width sheet */
