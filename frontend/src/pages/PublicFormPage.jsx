@@ -275,6 +275,42 @@ const PublicFormPage = () => {
         setSubmitting(true);
         setError('');
 
+        // Manual Validation
+        const missingFields = [];
+        if (form.fields && Array.isArray(form.fields)) {
+            form.fields.forEach(field => {
+                if (field.required) {
+                    const key = field.id || field.label;
+                    const value = formData[key];
+
+                    // Check for empty values
+                    if (value === undefined || value === null || value === '') {
+                        missingFields.push(field.label);
+                    }
+                    // Specific check for array types (checkboxes)
+                    else if (Array.isArray(value) && value.length === 0) {
+                        missingFields.push(field.label);
+                    }
+                }
+            });
+        }
+
+        // Also check respondent info if required fields exist
+        if (!hasNameField && !formData.respondent_name) {
+            missingFields.push("Full Name");
+        }
+        if (!hasEmailField && !formData.respondent_email) {
+            missingFields.push("Email Address");
+        }
+
+        if (missingFields.length > 0) {
+            setError(`Please answer the following required questions: ${missingFields.join(', ')}`);
+            setSubmitting(false);
+            // Scroll to top or error container
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
         if (!attemptIdRef.current && form?.id) {
             try {
                 await ensureAttemptForForm(form.id);
