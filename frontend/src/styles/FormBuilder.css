@@ -20,13 +20,14 @@
 }
 
 .builder-container {
-    height: 100vh;
+    min-height: 100vh;
     background-color: var(--gray-bg);
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* Use page-level scrolling on desktop */
+    overflow-y: auto;
 }
 
 /* HEADER */
@@ -106,8 +107,6 @@
     padding: 2rem 1.5rem;
     /* Added top padding */
     flex: 1;
-    overflow: hidden;
-    /* Prevent container scroll */
 }
 
 /* SIDEBAR */
@@ -205,8 +204,6 @@
     flex-direction: column;
     gap: 1.25rem;
     /* Reduced gap */
-    overflow-y: auto;
-    height: 100%;
     padding-bottom: 2rem;
 }
 
@@ -479,7 +476,28 @@
     }
 }
 
-@media (max-width: 768px) {
+/* Mobile / small-tablet tweaks */
+@media (max-width: 900px) {
+    /* On mobile we rely on the floating + button, so hide the static "Add Fields" sidebar */
+    .builder-sidebar {
+        display: none;
+    }
+
+    .fab-container {
+        display: flex !important;
+        right: 16px;
+        bottom: 16px;
+    }
+
+    .fab-button {
+        width: 56px;
+        height: 56px;
+    }
+
+    .fab-button svg {
+        font-size: 20px;
+    }
+
     .builder-header {
         padding: 0.6rem 1rem;
     }
@@ -493,18 +511,7 @@
         margin: 0 auto;
         gap: 1.5rem;
         padding: 1rem;
-        overflow-y: auto;
-        /* Allow whole layout to scroll on mobile */
-    }
-
-    .builder-sidebar {
-        width: 100%;
-        order: -1;
-    }
-
-    .sidebar-sticky {
-        position: relative;
-        top: 0;
+        overflow: visible;
     }
 
     .field-tools-vertical {
@@ -545,6 +552,110 @@
         align-items: flex-start;
         gap: 0.75rem;
     }
+}
+
+/* DATE FIELD PREVIEW */
+.date-field-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background: #f8fafc;
+    max-width: 260px;
+}
+
+.date-field-icon {
+    color: #64748b;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.date-field-input {
+    border: none;
+    background: transparent;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    width: 100%;
+    outline: none;
+}
+
+@media (max-width: 480px) {
+    .date-field-wrapper {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+/* Floating Add Field button (FAB) */
+.fab-container {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1200;
+    display: none; /* hidden on desktop; enabled in mobile media query */
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.fab-button {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    border: none;
+    background: #1a5f6f;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.24);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.fab-button svg {
+    font-size: 18px;
+}
+
+.fab-button:hover {
+    background: #0f4c5c;
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.3);
+}
+
+.fab-menu {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 0.4rem 0.5rem;
+    box-shadow: 0 14px 35px rgba(15, 23, 42, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 180px;
+}
+
+.fab-menu button {
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #111827;
+}
+
+.fab-menu button svg {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.fab-menu button:hover {
+    background: #f3f4f6;
 }
 
 @media (max-width: 480px) {

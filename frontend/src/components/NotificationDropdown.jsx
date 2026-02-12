@@ -16,7 +16,7 @@ const NotificationDropdown = ({
 
     return (
         <div
-            className={`notifications-dropdown ${isSuperAdmin ? 'is-mobile-fixed' : ''}`}
+            className="notifications-dropdown is-mobile-fixed"
             role="menu"
             aria-label="Notifications menu"
         >

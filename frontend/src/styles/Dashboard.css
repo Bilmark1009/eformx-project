@@ -115,7 +115,52 @@ body {
   text-align: center;
 }
 
+/* Notification bell button: larger tap target, badge inside (same pattern as SuperAdminDashboard) */
+.dashboard-notif-bell-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-light, #374151);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: var(--transition, 0.2s ease);
+  -webkit-tap-highlight-color: transparent;
+}
 
+.dashboard-notif-bell-btn:hover {
+  transform: scale(1.1);
+  opacity: 0.9;
+}
+
+.dashboard-notif-bell-icon {
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.dashboard-notif-bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-sizing: border-box;
+}
 
 .admin-profile {
   display: flex;
@@ -679,6 +724,24 @@ body {
 
   .icon-bell {
     font-size: 18px;
+  }
+
+  .dashboard-notif-bell-btn {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px;
+  }
+
+  .dashboard-notif-bell-icon {
+    font-size: 1.5rem;
+  }
+
+  .dashboard-notif-bell-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 12px;
+    top: 2px;
+    right: 2px;
   }
 
   .profile-avatar {
@@ -1456,29 +1519,29 @@ body {
   position: absolute;
   bottom: 4px;
   right: 4px;
-  width: 48px;
-  height: 48px;
-  background: #3b82f6;
+  width: 36px;
+  height: 36px;
+  background: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border: 3px solid #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   transition: all 0.2s ease;
   z-index: 100;
 }
 
 .avatar-change-btn:hover {
-  background: #2563eb;
-  transform: scale(1.1);
+  background: #f3f4f6;
+  transform: scale(1.03);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 .avatar-change-icon {
-  font-size: 20px;
-  color: #ffffff;
+  font-size: 16px;
+  color: #111827;
   line-height: 1;
   user-select: none;
   position: relative;
@@ -1756,15 +1819,14 @@ body {
   align-items: center;
   justify-content: center;
   border: 1px solid #e0e0e0;
-  transition: all 0.3s ease;
   flex: 1;
 }
 
-.stat-card:hover {
+/* .stat-card:hover {
   background: var(--teal-dark);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-}
+} */
 
 .status-breakdown {
   background: #fff;
@@ -2288,6 +2350,16 @@ body {
     max-width: 95%;
   }
 
+  /* Stack metrics vertically on tablet / mobile */
+  .analytics-stats-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .analytics-stats-content .stat-card {
+    width: 100%;
+  }
+
   .analytics-stats-header h2 {
     font-size: 1.4rem;
   }
@@ -2361,6 +2433,16 @@ body {
 
   .notifications {
     margin-right: 6px;
+  }
+
+  .dashboard-notif-bell-btn {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px;
+  }
+
+  .dashboard-notif-bell-icon {
+    font-size: 1.5rem;
   }
 
   /* On very small screens, show notifications as a full-width sheet */

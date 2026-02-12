@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 
@@ -50,8 +50,40 @@ function Dashboard({ onLogout, userEmail, userName }) {
   // Notifications
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsAnchorRef = useRef(null);
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const navigate = useNavigate();
+
+  // Close notifications when clicking outside or scrolling outside (same as SuperAdminDashboard)
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handlePointerDown = (event) => {
+      const anchor = notificationsAnchorRef.current;
+      if (!anchor) return;
+      if (anchor.contains(event.target)) return;
+      setShowNotifications(false);
+    };
+
+    const handleScrollOrWheel = (event) => {
+      const anchor = notificationsAnchorRef.current;
+      if (!anchor) return;
+      if (anchor.contains(event.target)) return;
+      setShowNotifications(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown, true);
+    document.addEventListener("touchstart", handlePointerDown, true);
+    window.addEventListener("scroll", handleScrollOrWheel, true);
+    window.addEventListener("wheel", handleScrollOrWheel, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown, true);
+      document.removeEventListener("touchstart", handlePointerDown, true);
+      window.removeEventListener("scroll", handleScrollOrWheel, true);
+      window.removeEventListener("wheel", handleScrollOrWheel, true);
+    };
+  }, [showNotifications]);
   const [responseCopyStatus, setResponseCopyStatus] = useState("");
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -316,16 +348,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   // ===== EXPORTS (ANALYTICS ONLY) =====
-  const handleExportAnalyticsCSV = async () => {
-    if (!selectedFormAnalytics?.id) return;
-    try {
-      const res = await formService.exportAnalyticsCsv(selectedFormAnalytics.id);
-      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.csv`);
-    } catch (err) {
-      console.error("Failed to export analytics CSV", err);
-      alert("Could not export analytics CSV. Please try again.");
-    }
-  };
+
 
   const handleExportAnalyticsXLSX = async () => {
     if (!selectedFormAnalytics?.id) return;
@@ -616,18 +639,19 @@ function Dashboard({ onLogout, userEmail, userName }) {
           <img src={headerLogo} alt="eFormX" className="header-logo" />
         </div>
         <div className="header-right">
-          <div className="notifications">
-            <FaBell
-              className="icon-bell"
+          <div ref={notificationsAnchorRef} className="notifications">
+            <button
+              type="button"
+              className="dashboard-notif-bell-btn"
               onClick={() => setShowNotifications((v) => !v)}
-              aria-label="Notifications"
+              aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
               title="Notifications"
-            />
-            {unreadCount > 0 && (
-              <span className="notifications-badge" aria-label={`${unreadCount} unread notifications`}>
-                {unreadCount}
-              </span>
-            )}
+            >
+              <FaBell className="dashboard-notif-bell-icon" aria-hidden />
+              {unreadCount > 0 && (
+                <span className="dashboard-notif-bell-badge">{unreadCount}</span>
+              )}
+            </button>
             {showNotifications && (
               <NotificationDropdown
                 notifications={notifications}
