@@ -1872,19 +1872,11 @@ body {
 
 .analytics-visuals {
   margin-bottom: 2rem;
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 10px;
 }
 
-.analytics-visuals::-webkit-scrollbar {
-  width: 6px;
-}
-
-.analytics-visuals::-webkit-scrollbar-thumb {
-  background: #ddd;
-  border-radius: 3px;
-}
+/* Let the whole analytics modal scroll instead of just the charts area
+   so the "Total Respondents / Completion Rate / Questions" metrics are
+   not visually sticky at the top. */
 
 .chart-card {
   background: #fff;
