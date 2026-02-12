@@ -17,6 +17,9 @@
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    /* Form builder layout */
+    --builder-header-offset: 64px;
 }
 
 .builder-container {
@@ -40,8 +43,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: relative;
-    /* Changed from sticky */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
     box-shadow: var(--shadow-md);
     flex-shrink: 0;
@@ -104,7 +109,7 @@
     margin: 0 auto;
     /* Removed top margin */
     gap: 2.5rem;
-    padding: 2rem 1.5rem;
+    padding: calc(2rem + var(--builder-header-offset)) 1.5rem 2rem;
     /* Added top padding */
     flex: 1;
 }
@@ -114,15 +119,33 @@
     width: 240px;
     /* Reduced width */
     flex-shrink: 0;
-    height: 100%;
-    overflow-y: auto;
-    /* Allow sidebar scroll if tools are many */
     padding-bottom: 2rem;
 }
 
 .sidebar-sticky {
-    /* Fixed in place by parent container's overflow settings */
     height: auto;
+}
+
+/* Desktop: pin "Add Fields" so it stays visible while scrolling */
+@media (min-width: 769px) {
+    .builder-layout {
+        align-items: flex-start;
+    }
+
+    /* Fix sidebar relative to viewport, similar to app shells (web only) */
+    .builder-sidebar {
+        position: fixed;
+        top: calc(var(--builder-header-offset) + 16px);
+        left: max(16px, calc(50% - 550px));
+        width: 240px;
+        max-height: calc(100vh - var(--builder-header-offset) - 32px);
+        overflow-y: auto;
+    }
+
+    /* Nudge main canvas so it doesn't sit under the fixed sidebar */
+    .builder-main-canvas {
+        margin-left: 260px;
+    }
 }
 
 .builder-section-title {
@@ -510,7 +533,7 @@
         flex-direction: column;
         margin: 0 auto;
         gap: 1.5rem;
-        padding: 1rem;
+        padding: calc(1rem + var(--builder-header-offset)) 1rem 1rem;
         overflow: visible;
     }
 
