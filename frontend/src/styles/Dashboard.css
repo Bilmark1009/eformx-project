@@ -1756,7 +1756,7 @@ body {
   background: white;
   border: 1px solid #ddd;
   border-radius: 20px;
-  padding: 1.5rem;
+  padding: 0 1.5rem 1.5rem 1.5rem;
   max-width: 800px;
   width: 95%;
   position: relative;
@@ -1770,13 +1770,14 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
   color: white;
   position: sticky;
   top: 0;
   background: white;
-  padding-bottom: 1rem;
+  padding: 1.5rem 0 1rem 0;
   z-index: 10;
+  border-bottom: 2px solid #f0f0f0;
 }
 
 .analytics-stats-header h2 {
@@ -1784,6 +1785,7 @@ body {
   font-weight: 700;
   margin: 0;
   color: rgb(0, 0, 0);
+  padding-right: 60px;
 }
 
 .close-analytics-btn {
@@ -1799,6 +1801,7 @@ body {
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .close-analytics-btn:hover {
@@ -1812,6 +1815,7 @@ body {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 2rem;
+  margin-top: 1.5rem;
 }
 
 .stat-card {

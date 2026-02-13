@@ -47,7 +47,7 @@ class SuperAdminController extends Controller
                 'total_users' => $totalRegularUsers + $totalSuperAdmins,
                 'total_forms' => $totalForms,
                 'total_responses' => $totalResponses,
-                'active_admins' => SuperAdmin::where('status', 'Active')->count(),
+                'active_admins' => User::where('role', 'Admin')->where('status', 'Active')->count(),
             ],
             'distribution' => $roleDistribution
         ]);
