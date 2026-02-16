@@ -10,6 +10,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
+
 console.log('API Base URL:', api.defaults.baseURL);
 
 // Request interceptor to add auth token
