@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaPlus, FaTrash, FaSave, FaArrowLeft, FaAlignLeft, FaCheckSquare, FaCalendarAlt } from "react-icons/fa";
+import { FaPlus, FaTrash, FaSave, FaArrowLeft, FaAlignLeft, FaCheckSquare, FaCalendarAlt, FaList, FaStar } from "react-icons/fa";
 import formService from "../services/formService";
 import "../styles/FormBuilder.css";
 
@@ -29,6 +29,14 @@ const AddFieldFab = ({ onAddField }) => {
                         <FaCalendarAlt />
                         <span>Date</span>
                     </button>
+                    <button type="button" onClick={() => handleChoose("select")}>
+                        <FaList />
+                        <span>Dropdown</span>
+                    </button>
+                    <button type="button" onClick={() => handleChoose("rating")}>
+                        <FaStar />
+                        <span>Rating</span>
+                    </button>
                 </div>
             )}
 
@@ -52,6 +60,11 @@ const FormBuilder = () => {
     const [formTitle, setFormTitle] = useState("");
     const [formDescription, setFormDescription] = useState("");
     const [fields, setFields] = useState([]);
+    const [branding, setBranding] = useState({
+        logo_url: "",
+        primary_color: "#3b82f6",
+        theme: "light"
+    });
     const [loading, setLoading] = useState(isEditMode);
     const [saving, setSaving] = useState(false);
     const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
@@ -59,11 +72,26 @@ const FormBuilder = () => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
 
+    const getValidationMessage = (pattern) => {
+        const messages = {
+            email: "Please enter a valid email address",
+            phone: "Please enter a valid phone number",
+            url: "Please enter a valid website URL",
+            number: "Please enter numbers only"
+        };
+        return messages[pattern] || "Invalid input format";
+    };
+
     const loadForm = useCallback(async () => {
         try {
             const data = await formService.getForm(id);
             setFormTitle(data.title || "");
             setFormDescription(data.description || "");
+            setBranding(data.branding || {
+                logo_url: "",
+                primary_color: "#3b82f6",
+                theme: "light"
+            });
 
             let fieldsData = data.fields || [];
             if (typeof fieldsData === 'string') {
@@ -119,9 +147,11 @@ const FormBuilder = () => {
             type,
             label: "",
             required: false,
-            placeholder: type === "text" ? "Enter placeholder text..." : "",
-            options: type === "multiple-choice" ? ["Option 1", "Option 2"] : [],
-            choiceType: type === "multiple-choice" ? "radio" : null
+            placeholder: type === "text" ? "Enter your answer..." : "",
+            options: (type === "multiple-choice" || type === "select") ? ["Option 1", "Option 2"] : [],
+            choiceType: type === "multiple-choice" ? "radio" : null,
+            validation: type === "text" ? {} : undefined,
+            conditions: []
         };
         setFields([...fields, newField]);
         setErrors({ ...errors, fields: null });
@@ -229,6 +259,7 @@ const FormBuilder = () => {
                 title: formTitle,
                 description: formDescription,
                 fields: fields,
+                branding: branding,
                 status: 'active'
             };
 
@@ -300,8 +331,74 @@ const FormBuilder = () => {
                                 <FaCalendarAlt />
                                 <span>Date Field</span>
                             </button>
+                            <button className="tool-btn-vertical" onClick={() => addField("select")}>
+                                <FaList />
+                                <span>Dropdown</span>
+                            </button>
+                            <button className="tool-btn-vertical" onClick={() => addField("rating")}>
+                                <FaStar />
+                                <span>Rating</span>
+                            </button>
                         </div>
                         {errors.fields && <p className="error-msg" style={{ marginTop: '1rem' }}>{errors.fields}</p>}
+
+                        <div className="builder-section" style={{ marginTop: '2rem' }}>
+                            <h2 className="builder-section-title">BRANDING</h2>
+                            <div className="branding-config">
+                                <div className="builder-input-group">
+                                    <label className="builder-label">Logo URL (Optional)</label>
+                                    <input
+                                        type="url"
+                                        className="option-input"
+                                        placeholder="https://example.com/logo.png"
+                                        value={branding.logo_url}
+                                        onChange={(e) => setBranding(prev => ({ ...prev, logo_url: e.target.value }))}
+                                    />
+                                    {branding.logo_url && (
+                                        <div style={{ marginTop: '0.5rem' }}>
+                                            <img
+                                                src={branding.logo_url}
+                                                alt="Logo preview"
+                                                style={{ maxWidth: '100px', maxHeight: '50px', objectFit: 'contain' }}
+                                                onError={(e) => e.target.style.display = 'none'}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="builder-input-group">
+                                    <label className="builder-label">Primary Color</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                        <input
+                                            type="color"
+                                            value={branding.primary_color}
+                                            onChange={(e) => setBranding(prev => ({ ...prev, primary_color: e.target.value }))}
+                                            style={{ width: '50px', height: '40px', border: '1px solid #d1d5db', borderRadius: '4px', cursor: 'pointer' }}
+                                        />
+                                        <input
+                                            type="text"
+                                            value={branding.primary_color}
+                                            onChange={(e) => setBranding(prev => ({ ...prev, primary_color: e.target.value }))}
+                                            placeholder="#3b82f6"
+                                            style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="builder-input-group">
+                                    <label className="builder-label">Theme</label>
+                                    <select
+                                        className="option-input"
+                                        value={branding.theme}
+                                        onChange={(e) => setBranding(prev => ({ ...prev, theme: e.target.value }))}
+                                    >
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                        <option value="auto">Auto (System)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
 
                         <div className="builder-tips">
                             <h3>Quick Tip</h3>
@@ -373,16 +470,60 @@ const FormBuilder = () => {
                                     </div>
 
                                     {field.type === "text" && (
-                                        <div className="builder-input-group">
-                                            <label className="builder-label">Input Placeholder</label>
-                                            <input
-                                                type="text"
-                                                className="option-input"
-                                                placeholder="e.g. Type your answer here..."
-                                                value={field.placeholder}
-                                                onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
-                                            />
-                                        </div>
+                                        <>
+                                            <div className="builder-input-group">
+                                                <label className="builder-label">Input Placeholder</label>
+                                                <input
+                                                    type="text"
+                                                    className="option-input"
+                                                    placeholder="e.g. Type your answer here..."
+                                                    value={field.placeholder || ""}
+                                                    onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="builder-input-group">
+                                                <label className="builder-label">Validation Pattern (Optional)</label>
+                                                <select
+                                                    className="validation-select"
+                                                    value={field.validation?.pattern || ""}
+                                                    onChange={(e) => updateField(field.id, {
+                                                        validation: {
+                                                            ...field.validation,
+                                                            pattern: e.target.value,
+                                                            message: e.target.value ? getValidationMessage(e.target.value) : ""
+                                                        }
+                                                    })}
+                                                    style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', width: '100%' }}
+                                                >
+                                                    <option value="">No validation</option>
+                                                    <option value="email">Email address</option>
+                                                    <option value="phone">Phone number</option>
+                                                    <option value="url">Website URL</option>
+                                                    <option value="number">Numbers only</option>
+                                                    <option value="custom">Custom regex</option>
+                                                </select>
+                                                {field.validation?.pattern === "custom" && (
+                                                    <input
+                                                        type="text"
+                                                        className="option-input"
+                                                        placeholder="Enter regex pattern (e.g. ^[A-Z]{2}\d{6}$)"
+                                                        value={field.validation?.customPattern || ""}
+                                                        onChange={(e) => updateField(field.id, {
+                                                            validation: {
+                                                                ...field.validation,
+                                                                customPattern: e.target.value
+                                                            }
+                                                        })}
+                                                        style={{ marginTop: '0.5rem' }}
+                                                    />
+                                                )}
+                                                {field.validation?.message && (
+                                                    <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                                                        Error message: "{field.validation.message}"
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
                                     )}
 
                                     {field.type === "multiple-choice" && (
@@ -440,6 +581,51 @@ const FormBuilder = () => {
                                         </div>
                                     )}
 
+                                    {field.type === "select" && (
+                                        <div className="field-options-list">
+                                            <label className="builder-label">Dropdown Options</label>
+                                            {field.options.map((opt, optIndex) => (
+                                                <div key={optIndex} className="option-row">
+                                                    <div className="dot" style={{
+                                                        width: 10,
+                                                        height: 10,
+                                                        borderRadius: '2px',
+                                                        background: '#cbd5e1'
+                                                    }} />
+                                                    <input
+                                                        type="text"
+                                                        className="option-input"
+                                                        value={opt}
+                                                        onChange={(e) => updateOption(field.id, optIndex, e.target.value)}
+                                                    />
+                                                    {field.options.length > 1 && (
+                                                        <button className="remove-field-btn" onClick={() => removeOption(field.id, optIndex)}>
+                                                            <FaTrash size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <button className="add-option-btn" onClick={() => addOption(field.id)}>
+                                                <FaPlus size={10} /> Add Option
+                                            </button>
+                                            {errors.fieldErrors?.[field.id]?.some(e => e.includes("option") || e.includes("Option")) && (
+                                                <span className="error-msg small" style={{ marginTop: '0.5rem', display: 'block' }}>
+                                                    {errors.fieldErrors?.[field.id].find(e => e.includes("option") || e.includes("Option"))}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {field.type === "rating" && (
+                                        <div className="builder-input-group">
+                                            <label className="builder-label">Rating Scale (1-10)</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f1f5f9', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                                                <FaStar color="#64748b" />
+                                                <span style={{ color: '#64748b' }}>Star rating (1-10) will appear for respondents</span>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="field-footer">
                                         <label className="required-toggle">
                                             <input
@@ -449,6 +635,106 @@ const FormBuilder = () => {
                                             />
                                             Mark as Required
                                         </label>
+
+                                        {/* Conditional Logic Section */}
+                                        <div className="conditional-logic-section" style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    id={`conditional-${field.id}`}
+                                                    checked={field.conditions && field.conditions.length > 0}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            updateField(field.id, {
+                                                                conditions: [{ field_id: '', operator: 'equals', value: '' }]
+                                                            });
+                                                        } else {
+                                                            updateField(field.id, { conditions: [] });
+                                                        }
+                                                    }}
+                                                />
+                                                <label htmlFor={`conditional-${field.id}`} style={{ fontWeight: '500', color: '#374151' }}>
+                                                    Show this field only if conditions are met
+                                                </label>
+                                            </div>
+
+                                            {field.conditions && field.conditions.length > 0 && (
+                                                <div className="conditions-list">
+                                                    {field.conditions.map((condition, condIndex) => (
+                                                        <div key={condIndex} className="condition-row" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>If</span>
+                                                            <select
+                                                                className="condition-field-select"
+                                                                value={condition.field_id}
+                                                                onChange={(e) => {
+                                                                    const newConditions = [...field.conditions];
+                                                                    newConditions[condIndex].field_id = e.target.value;
+                                                                    updateField(field.id, { conditions: newConditions });
+                                                                }}
+                                                                style={{ padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', fontSize: '0.875rem' }}
+                                                            >
+                                                                <option value="">Select field...</option>
+                                                                {fields.filter(f => f.id !== field.id).map(otherField => (
+                                                                    <option key={otherField.id} value={otherField.id}>
+                                                                        {otherField.label || `Field ${fields.indexOf(otherField) + 1}`}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <select
+                                                                className="condition-operator-select"
+                                                                value={condition.operator}
+                                                                onChange={(e) => {
+                                                                    const newConditions = [...field.conditions];
+                                                                    newConditions[condIndex].operator = e.target.value;
+                                                                    updateField(field.id, { conditions: newConditions });
+                                                                }}
+                                                                style={{ padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', fontSize: '0.875rem' }}
+                                                            >
+                                                                <option value="equals">equals</option>
+                                                                <option value="not_equals">does not equal</option>
+                                                                <option value="contains">contains</option>
+                                                                <option value="not_contains">does not contain</option>
+                                                                <option value="greater_than">is greater than</option>
+                                                                <option value="less_than">is less than</option>
+                                                            </select>
+                                                            <input
+                                                                type="text"
+                                                                className="condition-value-input"
+                                                                placeholder="value"
+                                                                value={condition.value}
+                                                                onChange={(e) => {
+                                                                    const newConditions = [...field.conditions];
+                                                                    newConditions[condIndex].value = e.target.value;
+                                                                    updateField(field.id, { conditions: newConditions });
+                                                                }}
+                                                                style={{ padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: '1px solid #d1d5db', fontSize: '0.875rem', minWidth: '100px' }}
+                                                            />
+                                                            <button
+                                                                className="remove-condition-btn"
+                                                                onClick={() => {
+                                                                    const newConditions = field.conditions.filter((_, i) => i !== condIndex);
+                                                                    updateField(field.id, { conditions: newConditions });
+                                                                }}
+                                                                style={{ padding: '0.25rem', border: 'none', background: '#ef4444', color: 'white', borderRadius: '0.25rem', cursor: 'pointer' }}
+                                                                title="Remove condition"
+                                                            >
+                                                                <FaTrash size={10} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    <button
+                                                        className="add-condition-btn"
+                                                        onClick={() => {
+                                                            const newConditions = [...field.conditions, { field_id: '', operator: 'equals', value: '' }];
+                                                            updateField(field.id, { conditions: newConditions });
+                                                        }}
+                                                        style={{ padding: '0.25rem 0.75rem', border: '1px solid #d1d5db', background: 'white', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.875rem' }}
+                                                    >
+                                                        <FaPlus size={10} style={{ marginRight: '0.25rem' }} /> Add Condition
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     {errors.fieldErrors?.[field.id] && (
                                         <div className="field-error-banner">
