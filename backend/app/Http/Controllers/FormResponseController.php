@@ -138,14 +138,68 @@ class FormResponseController extends Controller
     /**
      * Get all responses for a specific form (protected endpoint).
      */
-    public function index($formId)
+    public function index(Request $request, $formId)
     {
         /** @var User $user */
         $user = Auth::user();
         $form = $user->forms()->findOrFail($formId);
-        $responses = $form->responses()->latest()->get();
 
-        return response()->json($responses);
+        $query = $form->responses()->with('attempt');
+
+        // Date range filtering
+        if ($request->has('start_date') && $request->start_date) {
+            $query->where('created_at', '>=', $request->start_date . ' 00:00:00');
+        }
+        if ($request->has('end_date') && $request->end_date) {
+            $query->where('created_at', '<=', $request->end_date . ' 23:59:59');
+        }
+
+        // Field value filtering
+        if ($request->has('filters') && is_array($request->filters)) {
+            foreach ($request->filters as $filter) {
+                if (isset($filter['field_id']) && isset($filter['value'])) {
+                    $fieldId = $filter['field_id'];
+                    $value = $filter['value'];
+                    $operator = $filter['operator'] ?? 'contains';
+
+                    $query->where(function ($q) use ($fieldId, $value, $operator) {
+                        // Search in responses JSON
+                        if ($operator === 'equals') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) = ?", [$value]);
+                        } elseif ($operator === 'contains') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) LIKE ?", ['%' . $value . '%']);
+                        } elseif ($operator === 'starts_with') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) LIKE ?", [$value . '%']);
+                        }
+                    });
+                }
+            }
+        }
+
+        // Search in respondent name/email
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('respondent_name', 'LIKE', '%' . $search . '%')
+                  ->orWhere('respondent_email', 'LIKE', '%' . $search . '%');
+            });
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 50);
+        $page = $request->get('page', 1);
+
+        $responses = $query->latest()->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $responses->items(),
+            'pagination' => [
+                'current_page' => $responses->currentPage(),
+                'last_page' => $responses->lastPage(),
+                'per_page' => $responses->perPage(),
+                'total' => $responses->total(),
+            ]
+        ]);
     }
 
     // ...existing code...

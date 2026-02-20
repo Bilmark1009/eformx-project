@@ -42,6 +42,20 @@ class FormController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'fields' => 'nullable|array',
+            'fields.*.id' => 'required|string',
+            'fields.*.type' => 'required|string|in:text,multiple-choice,date,select,radio,checkbox,number,textarea,rating',
+            'fields.*.label' => 'required|string',
+            'fields.*.required' => 'boolean',
+            'fields.*.options' => 'nullable|array',
+            'fields.*.validation' => 'nullable|array',
+            'fields.*.conditions' => 'nullable|array',
+            'fields.*.conditions.*.field_id' => 'required|string',
+            'fields.*.conditions.*.operator' => 'required|string|in:equals,not_equals,contains,not_contains,greater_than,less_than',
+            'fields.*.conditions.*.value' => 'required',
+            'branding' => 'nullable|array',
+            'branding.logo_url' => 'nullable|url',
+            'branding.primary_color' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/',
+            'branding.theme' => 'nullable|string|in:light,dark,auto',
             'status' => 'nullable|in:draft,active,closed',
         ]);
 
@@ -98,6 +112,7 @@ class FormController extends Controller
                 'title' => $form->title,
                 'description' => $form->description,
                 'fields' => $form->fields,
+                'branding' => $form->branding,
                 'status' => $form->status,
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -122,6 +137,20 @@ class FormController extends Controller
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'fields' => 'nullable|array',
+            'fields.*.id' => 'required|string',
+            'fields.*.type' => 'required|string|in:text,multiple-choice,date,select,radio,checkbox,number,textarea,rating',
+            'fields.*.label' => 'required|string',
+            'fields.*.required' => 'boolean',
+            'fields.*.options' => 'nullable|array',
+            'fields.*.validation' => 'nullable|array',
+            'fields.*.conditions' => 'nullable|array',
+            'fields.*.conditions.*.field_id' => 'required|string',
+            'fields.*.conditions.*.operator' => 'required|string|in:equals,not_equals,contains,not_contains,greater_than,less_than',
+            'fields.*.conditions.*.value' => 'required',
+            'branding' => 'nullable|array',
+            'branding.logo_url' => 'nullable|url',
+            'branding.primary_color' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/',
+            'branding.theme' => 'nullable|string|in:light,dark,auto',
             'status' => 'nullable|in:draft,active,closed',
         ]);
 
@@ -687,5 +716,203 @@ class FormController extends Controller
     {
         $name = preg_replace('/[^A-Za-z0-9\-_. ]/', '', $name);
         return trim($name) === '' ? 'form' : $name;
+    }
+
+    /**
+     * Export filtered responses to CSV
+     */
+    public function exportResponsesCsv(Request $request, $id)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $form = $user->forms()->findOrFail($id);
+
+        // Build the same query as in FormResponseController@index
+        $query = $form->responses()->with('attempt');
+
+        // Apply the same filters
+        if ($request->has('start_date') && $request->start_date) {
+            $query->where('created_at', '>=', $request->start_date . ' 00:00:00');
+        }
+        if ($request->has('end_date') && $request->end_date) {
+            $query->where('created_at', '<=', $request->end_date . ' 23:59:59');
+        }
+
+        if ($request->has('filters') && is_array($request->filters)) {
+            foreach ($request->filters as $filter) {
+                if (isset($filter['field_id']) && isset($filter['value'])) {
+                    $fieldId = $filter['field_id'];
+                    $value = $filter['value'];
+                    $operator = $filter['operator'] ?? 'contains';
+
+                    $query->where(function ($q) use ($fieldId, $value, $operator) {
+                        if ($operator === 'equals') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) = ?", [$value]);
+                        } elseif ($operator === 'contains') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) LIKE ?", ['%' . $value . '%']);
+                        } elseif ($operator === 'starts_with') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) LIKE ?", [$value . '%']);
+                        }
+                    });
+                }
+            }
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('respondent_name', 'LIKE', '%' . $search . '%')
+                  ->orWhere('respondent_email', 'LIKE', '%' . $search . '%');
+            });
+        }
+
+        $responses = $query->latest()->get();
+
+        $filename = $this->safeFilename($form->title) . '_responses_' . date('Y-m-d_H-i-s') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($responses, $form) {
+            $file = fopen('php://output', 'w');
+
+            // Write headers
+            fputcsv($file, ['Response ID', 'Respondent Name', 'Respondent Email', 'Submitted At']);
+
+            // Add field headers
+            if ($form->fields) {
+                foreach ($form->fields as $field) {
+                    fputcsv($file, [$field['label'] ?? $field['id']]);
+                }
+            }
+
+            // Write data
+            foreach ($responses as $response) {
+                $row = [
+                    $response->id,
+                    $response->respondent_name ?? '',
+                    $response->respondent_email ?? '',
+                    $response->created_at->format('Y-m-d H:i:s'),
+                ];
+
+                // Add field responses
+                if ($form->fields && $response->responses) {
+                    foreach ($form->fields as $field) {
+                        $fieldId = $field['id'] ?? $field['label'];
+                        $value = $response->responses[$fieldId] ?? '';
+                        $row[] = $this->formatAnswerValue($value);
+                    }
+                }
+
+                fputcsv($file, $row);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export filtered responses to XLSX
+     */
+    public function exportResponsesXlsx(Request $request, $id)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $form = $user->forms()->findOrFail($id);
+
+        // Build the same query as in FormResponseController@index
+        $query = $form->responses()->with('attempt');
+
+        // Apply the same filters
+        if ($request->has('start_date') && $request->start_date) {
+            $query->where('created_at', '>=', $request->start_date . ' 00:00:00');
+        }
+        if ($request->has('end_date') && $request->end_date) {
+            $query->where('created_at', '<=', $request->end_date . ' 23:59:59');
+        }
+
+        if ($request->has('filters') && is_array($request->filters)) {
+            foreach ($request->filters as $filter) {
+                if (isset($filter['field_id']) && isset($filter['value'])) {
+                    $fieldId = $filter['field_id'];
+                    $value = $filter['value'];
+                    $operator = $filter['operator'] ?? 'contains';
+
+                    $query->where(function ($q) use ($fieldId, $value, $operator) {
+                        if ($operator === 'equals') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) = ?", [$value]);
+                        } elseif ($operator === 'contains') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) LIKE ?", ['%' . $value . '%']);
+                        } elseif ($operator === 'starts_with') {
+                            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(responses, '$.\"{$fieldId}\"')) LIKE ?", [$value . '%']);
+                        }
+                    });
+                }
+            }
+        }
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('respondent_name', 'LIKE', '%' . $search . '%')
+                  ->orWhere('respondent_email', 'LIKE', '%' . $search . '%');
+            });
+        }
+
+        $responses = $query->latest()->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Set headers
+        $sheet->setCellValue('A1', 'Response ID');
+        $sheet->setCellValue('B1', 'Respondent Name');
+        $sheet->setCellValue('C1', 'Respondent Email');
+        $sheet->setCellValue('D1', 'Submitted At');
+
+        // Add field headers
+        $col = 'E';
+        if ($form->fields) {
+            foreach ($form->fields as $field) {
+                $sheet->setCellValue($col . '1', $field['label'] ?? $field['id']);
+                $col++;
+            }
+        }
+
+        // Write data
+        $row = 2;
+        foreach ($responses as $response) {
+            $sheet->setCellValue('A' . $row, $response->id);
+            $sheet->setCellValue('B' . $row, $response->respondent_name ?? '');
+            $sheet->setCellValue('C' . $row, $response->respondent_email ?? '');
+            $sheet->setCellValue('D' . $row, $response->created_at->format('Y-m-d H:i:s'));
+
+            // Add field responses
+            $col = 'E';
+            if ($form->fields && $response->responses) {
+                foreach ($form->fields as $field) {
+                    $fieldId = $field['id'] ?? $field['label'];
+                    $value = $response->responses[$fieldId] ?? '';
+                    $sheet->setCellValue($col . $row, $this->formatAnswerValue($value));
+                    $col++;
+                }
+            }
+
+            $row++;
+        }
+
+        $filename = $this->safeFilename($form->title) . '_responses_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 }

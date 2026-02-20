@@ -63,6 +63,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/forms/{id}/analytics/export-csv', [FormController::class, 'exportAnalyticsCsv']);
     Route::get('/forms/{id}/analytics/export-xlsx', [FormController::class, 'exportAnalyticsXlsx']);
     Route::get('/forms/{formId}/responses', [FormResponseController::class, 'index']);
+    Route::get('/forms/{formId}/responses/export-csv', [FormController::class, 'exportResponsesCsv']);
+    Route::get('/forms/{formId}/responses/export-xlsx', [FormController::class, 'exportResponsesXlsx']);
 
     // User management (for SuperAdmin)
     Route::apiResource('users', UserController::class);
