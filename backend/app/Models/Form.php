@@ -15,10 +15,12 @@ class Form extends Model
         'description',
         'fields',
         'status',
+        'branding',
     ];
 
     protected $casts = [
         'fields' => 'array',
+        'branding' => 'array',
     ];
 
     protected $appends = ['analytics'];
