@@ -21,6 +21,7 @@ import {
   FaTimes,
   FaCamera,
   FaSearch,
+  FaFilter,
 } from "react-icons/fa";
 
 function Dashboard({ onLogout, userEmail, userName }) {
@@ -46,6 +47,15 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [selectedFormResponses, setSelectedFormResponses] = useState(null);
   const [responsesSearchTerm, setResponsesSearchTerm] = useState("");
   const [activeResponseDetail, setActiveResponseDetail] = useState(null);
+
+  // Response filtering
+  const [responseFilters, setResponseFilters] = useState({
+    startDate: "",
+    endDate: "",
+    fieldFilters: [],
+    search: ""
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Notifications
   const [notifications, setNotifications] = useState([]);
@@ -289,6 +299,53 @@ function Dashboard({ onLogout, userEmail, userName }) {
     } catch (err) {
       console.error("Failed to fetch responses:", err);
       alert("Could not load responses.");
+    }
+  };
+
+  const exportResponses = async (format) => {
+    if (!selectedFormResponses) return;
+
+    try {
+      // Build filters object for API
+      const filters = {};
+
+      if (responseFilters.startDate) filters.start_date = responseFilters.startDate;
+      if (responseFilters.endDate) filters.end_date = responseFilters.endDate;
+      if (responseFilters.search) filters.search = responseFilters.search;
+
+      // Add field filters as JSON string
+      if (responseFilters.fieldFilters.length > 0) {
+        responseFilters.fieldFilters.forEach((filter, index) => {
+          if (filter.fieldId && filter.value) {
+            filters[`filters[${index}][field_id]`] = filter.fieldId;
+            filters[`filters[${index}][operator]`] = filter.operator;
+            filters[`filters[${index}][value]`] = filter.value;
+          }
+        });
+      }
+
+      const response = format === 'csv'
+        ? await formService.exportResponsesCsv(selectedFormResponses.id, filters)
+        : await formService.exportResponsesXlsx(selectedFormResponses.id, filters);
+
+      // Create blob URL and trigger download
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `${selectedFormResponses.title}_responses_${timestamp}.${format}`;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.error("Failed to export responses:", err);
+      alert("Failed to export responses. Please try again.");
     }
   };
   const downloadBlob = (blob, filename) => {
@@ -622,12 +679,50 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const filteredResponses =
     selectedFormResponses && Array.isArray(selectedFormResponses.responses)
       ? selectedFormResponses.responses.filter((response) => {
-        const term = responsesSearchTerm.trim().toLowerCase();
-        if (!term) return true;
-        const name = (response.respondent_name || "").toLowerCase();
-        const email = (response.respondent_email || "").toLowerCase();
-        const summary = summarizeResponses(response).toLowerCase();
-        return name.includes(term) || email.includes(term) || summary.includes(term);
+        // Date range filter
+        if (responseFilters.startDate) {
+          const responseDate = new Date(response.created_at).toISOString().split('T')[0];
+          if (responseDate < responseFilters.startDate) return false;
+        }
+        if (responseFilters.endDate) {
+          const responseDate = new Date(response.created_at).toISOString().split('T')[0];
+          if (responseDate > responseFilters.endDate) return false;
+        }
+
+        // Field-specific filters
+        if (responseFilters.fieldFilters.length > 0) {
+          for (const filter of responseFilters.fieldFilters) {
+            if (!filter.fieldId || !filter.value) continue;
+            const fieldValue = response.responses?.[filter.fieldId] || "";
+            const searchValue = filter.value.toLowerCase();
+            const fieldStr = String(fieldValue).toLowerCase();
+
+            switch (filter.operator) {
+              case 'equals':
+                if (fieldStr !== searchValue) return false;
+                break;
+              case 'contains':
+                if (!fieldStr.includes(searchValue)) return false;
+                break;
+              case 'starts_with':
+                if (!fieldStr.startsWith(searchValue)) return false;
+                break;
+              default:
+                break;
+            }
+          }
+        }
+
+        // Search filter (respondent name/email and responses)
+        const searchTerm = (responseFilters.search || responsesSearchTerm).trim().toLowerCase();
+        if (searchTerm) {
+          const name = (response.respondent_name || "").toLowerCase();
+          const email = (response.respondent_email || "").toLowerCase();
+          const summary = summarizeResponses(response).toLowerCase();
+          return name.includes(searchTerm) || email.includes(searchTerm) || summary.includes(searchTerm);
+        }
+
+        return true;
       })
       : [];
 
@@ -922,16 +1017,43 @@ function Dashboard({ onLogout, userEmail, userName }) {
         <div className="modal-overlay">
           <div className="responses-modal">
             <div className="responses-header">
-              <h2>{selectedFormResponses.title} - Responses</h2>
-              <div className="responses-search-wrapper">
-                <FaSearch className="responses-search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search by name or email..."
-                  value={responsesSearchTerm}
-                  onChange={(e) => setResponsesSearchTerm(e.target.value)}
-                  className="responses-search-input"
-                />
+              <h2>{selectedFormResponses.title} - Responses ({filteredResponses.length})</h2>
+              <div className="responses-controls">
+                <div className="responses-search-wrapper">
+                  <FaSearch className="responses-search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or email..."
+                    value={responseFilters.search || responsesSearchTerm}
+                    onChange={(e) => {
+                      setResponseFilters(prev => ({ ...prev, search: e.target.value }));
+                      setResponsesSearchTerm(e.target.value);
+                    }}
+                    className="responses-search-input"
+                  />
+                </div>
+                <button
+                  className="filter-toggle-btn"
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                >
+                  <FaFilter /> Filters
+                </button>
+                <div className="export-buttons">
+                  <button
+                    className="export-btn csv"
+                    onClick={() => exportResponses('csv')}
+                    title="Export as CSV"
+                  >
+                    <FaDownload /> CSV
+                  </button>
+                  <button
+                    className="export-btn xlsx"
+                    onClick={() => exportResponses('xlsx')}
+                    title="Export as Excel"
+                  >
+                    <FaDownload /> XLSX
+                  </button>
+                </div>
               </div>
               <button
                 className="close-responses-btn"
@@ -940,11 +1062,110 @@ function Dashboard({ onLogout, userEmail, userName }) {
                   setSelectedFormResponses(null);
                   setResponsesSearchTerm("");
                   setActiveResponseDetail(null);
+                  setResponseFilters({ startDate: "", endDate: "", fieldFilters: [], search: "" });
+                  setShowAdvancedFilters(false);
                 }}
               >
                 ✕
               </button>
             </div>
+
+            {showAdvancedFilters && (
+              <div className="advanced-filters-panel">
+                <div className="filter-row">
+                  <div className="filter-group">
+                    <label>Start Date</label>
+                    <input
+                      type="date"
+                      value={responseFilters.startDate}
+                      onChange={(e) => setResponseFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                    />
+                  </div>
+                  <div className="filter-group">
+                    <label>End Date</label>
+                    <input
+                      type="date"
+                      value={responseFilters.endDate}
+                      onChange={(e) => setResponseFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="field-filters">
+                  <h4>Field Filters</h4>
+                  {responseFilters.fieldFilters.map((filter, index) => (
+                    <div key={index} className="filter-row">
+                      <select
+                        value={filter.fieldId}
+                        onChange={(e) => {
+                          const newFilters = [...responseFilters.fieldFilters];
+                          newFilters[index].fieldId = e.target.value;
+                          setResponseFilters(prev => ({ ...prev, fieldFilters: newFilters }));
+                        }}
+                      >
+                        <option value="">Select field...</option>
+                        {selectedFormResponses.fields?.map(field => (
+                          <option key={field.id} value={field.id}>
+                            {field.label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={filter.operator}
+                        onChange={(e) => {
+                          const newFilters = [...responseFilters.fieldFilters];
+                          newFilters[index].operator = e.target.value;
+                          setResponseFilters(prev => ({ ...prev, fieldFilters: newFilters }));
+                        }}
+                      >
+                        <option value="contains">contains</option>
+                        <option value="equals">equals</option>
+                        <option value="starts_with">starts with</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Filter value..."
+                        value={filter.value}
+                        onChange={(e) => {
+                          const newFilters = [...responseFilters.fieldFilters];
+                          newFilters[index].value = e.target.value;
+                          setResponseFilters(prev => ({ ...prev, fieldFilters: newFilters }));
+                        }}
+                      />
+                      <button
+                        className="remove-filter-btn"
+                        onClick={() => {
+                          const newFilters = responseFilters.fieldFilters.filter((_, i) => i !== index);
+                          setResponseFilters(prev => ({ ...prev, fieldFilters: newFilters }));
+                        }}
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="add-filter-btn"
+                    onClick={() => {
+                      setResponseFilters(prev => ({
+                        ...prev,
+                        fieldFilters: [...prev.fieldFilters, { fieldId: '', operator: 'contains', value: '' }]
+                      }));
+                    }}
+                  >
+                    <FaPlus size={12} /> Add Field Filter
+                  </button>
+                </div>
+
+                <div className="filter-actions">
+                  <button
+                    className="clear-filters-btn"
+                    onClick={() => setResponseFilters({ startDate: "", endDate: "", fieldFilters: [], search: "" })}
+                  >
+                    Clear All Filters
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="responses-table-wrapper">
               <table className="responses-table">
                 <thead>
