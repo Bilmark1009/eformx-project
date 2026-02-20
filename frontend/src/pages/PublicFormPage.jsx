@@ -25,6 +25,43 @@ const PublicFormPage = () => {
     const reloadGuardKeyRef = useRef(null);
     const hasInteractedRef = useRef(false);
 
+    // Evaluate if a field should be shown based on its conditions
+    const shouldShowField = (field, allFields, formData) => {
+        if (!field.conditions || field.conditions.length === 0) {
+            return true;
+        }
+
+        return field.conditions.every(condition => {
+            const dependentField = allFields.find(f => f.id === condition.field_id);
+            if (!dependentField) return true; // If dependent field doesn't exist, show the field
+
+            const dependentValue = formData[dependentField.id || dependentField.label];
+            if (dependentValue === undefined || dependentValue === null || dependentValue === '') {
+                return false; // If dependent field is not filled, don't show
+            }
+
+            const value = String(dependentValue).toLowerCase();
+            const conditionValue = String(condition.value).toLowerCase();
+
+            switch (condition.operator) {
+                case 'equals':
+                    return value === conditionValue;
+                case 'not_equals':
+                    return value !== conditionValue;
+                case 'contains':
+                    return value.includes(conditionValue);
+                case 'not_contains':
+                    return !value.includes(conditionValue);
+                case 'greater_than':
+                    return !isNaN(value) && !isNaN(conditionValue) && parseFloat(value) > parseFloat(conditionValue);
+                case 'less_than':
+                    return !isNaN(value) && !isNaN(conditionValue) && parseFloat(value) < parseFloat(conditionValue);
+                default:
+                    return true;
+            }
+        });
+    };
+
     const loadAttemptFromSession = (formId) => {
         const key = `form_attempt_${formId}`;
         sessionKeyRef.current = key;
@@ -183,6 +220,54 @@ const PublicFormPage = () => {
 
         setTimeout(clearReloadGuard, 0);
     }, []);
+
+    // Apply custom branding when form loads
+    useEffect(() => {
+        if (form?.branding) {
+            const branding = form.branding;
+
+            // Set CSS custom properties for theming
+            const root = document.documentElement;
+
+            if (branding.primary_color) {
+                root.style.setProperty('--primary-color', branding.primary_color);
+                // Calculate complementary colors
+                root.style.setProperty('--primary-hover', adjustColor(branding.primary_color, -20));
+                root.style.setProperty('--primary-light', adjustColor(branding.primary_color, 40));
+            }
+
+            // Apply theme class
+            const themeClass = branding.theme === 'dark' ? 'theme-dark' :
+                              branding.theme === 'auto' ? 'theme-auto' : 'theme-light';
+            document.body.className = document.body.className.replace(/theme-\w+/g, '').trim() + ' ' + themeClass;
+        }
+
+        return () => {
+            // Cleanup on unmount
+            document.body.className = document.body.className.replace(/theme-\w+/g, '').trim();
+            const root = document.documentElement;
+            root.style.removeProperty('--primary-color');
+            root.style.removeProperty('--primary-hover');
+            root.style.removeProperty('--primary-light');
+        };
+    }, [form?.branding]);
+
+    // Helper function to adjust color brightness
+    const adjustColor = (color, amount) => {
+        const usePound = color[0] === '#';
+        const col = usePound ? color.slice(1) : color;
+
+        const num = parseInt(col, 16);
+        let r = (num >> 16) + amount;
+        let g = (num >> 8 & 0x00FF) + amount;
+        let b = (num & 0x0000FF) + amount;
+
+        r = r > 255 ? 255 : r < 0 ? 0 : r;
+        g = g > 255 ? 255 : g < 0 ? 0 : g;
+        b = b > 255 ? 255 : b < 0 ? 0 : b;
+
+        return (usePound ? '#' : '') + (r << 16 | g << 8 | b).toString(16);
+    };
 
     useEffect(() => {
         const fetchForm = async () => {
@@ -409,7 +494,11 @@ const PublicFormPage = () => {
     return (
         <div className="public-form-container">
             <div className="public-form-header">
-                <img src={logo} alt="eFormX Logo" className="public-logo" />
+                {form?.branding?.logo_url ? (
+                    <img src={form.branding.logo_url} alt="Custom Logo" className="public-logo" />
+                ) : (
+                    <img src={logo} alt="eFormX Logo" className="public-logo" />
+                )}
             </div>
 
             <div className="public-form-card">
@@ -458,7 +547,9 @@ const PublicFormPage = () => {
 
                     <div className="public-form-section">
                         <h3>Questions</h3>
-                        {form.fields && form.fields.map((field, index) => {
+                        {form.fields && form.fields
+                            .filter(field => shouldShowField(field, form.fields, formData))
+                            .map((field, index) => {
                             const key = field.id || field.label;
                             const labelReq = field.required ? '*' : '';
                             if (field.type === 'multiple-choice') {
@@ -532,6 +623,42 @@ const PublicFormPage = () => {
                                 );
                             }
 
+                            if (field.type === 'rating') {
+                                const currentRating = formData[key] || 0;
+                                return (
+                                    <div key={index} className="public-form-group">
+                                        <label>{field.label} {labelReq}</label>
+                                        <div className="rating-input">
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(star => (
+                                                <button
+                                                    key={star}
+                                                    type="button"
+                                                    className={`star ${star <= currentRating ? 'active' : ''}`}
+                                                    onClick={() => handleInputChange(key, star)}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        fontSize: '24px',
+                                                        cursor: 'pointer',
+                                                        color: star <= currentRating ? '#fbbf24' : '#d1d5db'
+                                                    }}
+                                                >
+                                                    ★
+                                                </button>
+                                            ))}
+                                            <span style={{ marginLeft: '8px', fontSize: '14px', color: '#6b7280' }}>
+                                                {currentRating > 0 ? `${currentRating}/10` : 'Click to rate'}
+                                            </span>
+                                        </div>
+                                        {field.required && currentRating === 0 && (
+                                            <span className="error-msg" style={{ fontSize: '12px', color: '#ef4444' }}>
+                                                This field is required
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            }
+
                             // Non-multiple-choice inputs
                             return (
                                 <div key={index} className="public-form-group">
@@ -539,14 +666,14 @@ const PublicFormPage = () => {
                                     {field.type === 'textarea' ? (
                                         <textarea
                                             required={field.required}
-                                            value={formData[key]}
+                                            value={formData[key] || ''}
                                             onChange={(e) => handleInputChange(key, e.target.value)}
-                                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
                                         />
                                     ) : field.type === 'select' ? (
                                         <select
                                             required={field.required}
-                                            value={formData[key]}
+                                            value={formData[key] || ''}
                                             onChange={(e) => handleInputChange(key, e.target.value)}
                                         >
                                             <option value="">Select an option</option>
@@ -558,9 +685,11 @@ const PublicFormPage = () => {
                                         <input
                                             type={field.type || 'text'}
                                             required={field.required}
-                                            value={formData[key]}
+                                            value={formData[key] || ''}
                                             onChange={(e) => handleInputChange(key, e.target.value)}
-                                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                                            pattern={field.validation?.pattern === 'custom' ? field.validation?.customPattern : undefined}
+                                            title={field.validation?.message || undefined}
                                         />
                                     )}
                                 </div>
