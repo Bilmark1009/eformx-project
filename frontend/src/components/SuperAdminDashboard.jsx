@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import "../styles/SuperAdminDashboard.css";
 import { FaBell, FaPlus, FaEdit, FaTrash, FaUserEdit, FaCamera, FaUsers, FaFileAlt, FaCheckCircle, FaUserShield } from "react-icons/fa";
 import CreateAccountModal from "./CreateAccountModal";
@@ -8,6 +8,10 @@ import userService from "../services/userService";
 import { FaSearch } from "react-icons/fa";
 import notificationsService from "../services/notificationsService";
 import NotificationDropdown from "./NotificationDropdown";
+import ThemeToggle from "./ThemeToggle";
+import { useNotificationDropdown } from "../hooks/useNotificationDropdown";
+import { usePolling } from "../hooks/usePolling";
+import { useModal } from "../hooks/useModal";
 import {
   PieChart,
   Pie,
@@ -22,69 +26,42 @@ const COLORS = ['#1a5f6f', '#5a8a96', '#ffbb28', '#ff8042', '#0f4c5c', '#8884d8'
 
 
 function SuperAdminDashboard({ onLogout }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const createModal = useModal();
+  const deleteModal = useModal();
+  const profileModal = useModal();
+  const editProfileModal = useModal();
+  const changePasswordModal = useModal();
+
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [systemStats, setSystemStats] = useState(null);
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [accountToDelete, setAccountToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const [accountToEdit, setAccountToEdit] = useState(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
-
-  // Change password (same behavior as Dashboard.jsx: saved via "Save Changes")
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [hideChangePasswordCta, setHideChangePasswordCta] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+
   const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationsAnchorRef = useRef(null);
+  const { showNotifications, setShowNotifications, notificationsAnchorRef } = useNotificationDropdown();
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  // Close notifications when clicking anywhere outside the bell/dropdown area
+  const loadNotifications = useCallback(async () => {
+    try {
+      const items = await notificationsService.list();
+      setNotifications(items);
+    } catch (e) {
+      // ignore transient errors
+    }
+  }, []);
+  usePolling(loadNotifications, 3000);
+
+
+  // Initial load on mount
   useEffect(() => {
-    if (!showNotifications) return;
-
-    const handlePointerDown = (event) => {
-      const anchor = notificationsAnchorRef.current;
-      if (!anchor) return;
-      if (anchor.contains(event.target)) return;
-      setShowNotifications(false);
-    };
-
-    const handleScrollOrWheel = (event) => {
-      const anchor = notificationsAnchorRef.current;
-      if (!anchor) return;
-      // If user is scrolling inside the dropdown (or on the bell), don't close
-      if (anchor.contains(event.target)) return;
-      setShowNotifications(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown, true);
-    document.addEventListener("touchstart", handlePointerDown, true);
-    // Close only when scrolling outside the dropdown; scrolling inside the list keeps it open
-    window.addEventListener("scroll", handleScrollOrWheel, true);
-    window.addEventListener("wheel", handleScrollOrWheel, true);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown, true);
-      document.removeEventListener("touchstart", handlePointerDown, true);
-      window.removeEventListener("scroll", handleScrollOrWheel, true);
-      window.removeEventListener("wheel", handleScrollOrWheel, true);
-    };
-  }, [showNotifications]);
-
-
-  // Load accounts from backend on mount
-  useEffect(() => {
-    const loadUsers = async () => {
+    const loadInitial = async () => {
       try {
         setLoading(true);
         const users = await userService.getUsers();
@@ -97,8 +74,7 @@ function SuperAdminDashboard({ onLogout }) {
         setLoading(false);
       }
     };
-    loadUsers();
-    // Load system stats
+    
     const loadStats = async () => {
       try {
         const stats = await userService.getSystemStats();
@@ -107,46 +83,22 @@ function SuperAdminDashboard({ onLogout }) {
         console.error("Failed to load stats:", e);
       }
     };
+    
+    loadInitial();
     loadStats();
-    // Load notifications for Super Admin
-    const loadNotifications = async () => {
-      try {
-        const items = await notificationsService.list();
-        setNotifications(items);
-      } catch (e) {
-        // ignore for now
-      }
-    };
     loadNotifications();
   }, []);
 
-  // Auto-refresh accounts periodically to stay in sync with backend
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const users = await userService.getUsers();
-        setAccounts(users);
-      } catch (e) {
-        // ignore transient errors
-      }
-    }, 3000); // every 3 seconds to match notifications cadence
-
-    return () => clearInterval(interval);
+  // Auto-refresh accounts
+  const loadAccounts = useCallback(async () => {
+    try {
+      const users = await userService.getUsers();
+      setAccounts(users);
+    } catch (e) {
+      // ignore transient errors
+    }
   }, []);
-
-  // Auto-refresh notifications in the background (no page restart needed)
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const items = await notificationsService.list();
-        setNotifications(items);
-      } catch (e) {
-        // ignore transient errors
-      }
-    }, 3000); // every 3 seconds for snappier updates
-
-    return () => clearInterval(interval);
-  }, []);
+  usePolling(loadAccounts, 3000);
 
   // ✅ Persistent Super Admin Profile
   const [superAdminProfile, setSuperAdminProfile] = useState(() => {
@@ -199,7 +151,7 @@ function SuperAdminDashboard({ onLogout }) {
         });
         setNewPassword("");
         setConfirmNewPassword("");
-        setIsChangePasswordOpen(false);
+        changePasswordModal.close();
       }
 
       // Keep local UI profile in sync
@@ -260,24 +212,22 @@ function SuperAdminDashboard({ onLogout }) {
   };
 
   const openEditModal = (account) => {
-    setAccountToEdit(account);
-    setIsModalOpen(true);
+    createModal.open(account);
   };
 
   const handleUpdateAccount = async (updatedAccount) => {
-    if (!accountToEdit) return;
+    if (!createModal.data) return;
     try {
-      const id = accountToEdit.id;
-      const updated = await userService.updateUser(id, updatedAccount, accountToEdit.role);
+      const id = createModal.data.id;
+      const updated = await userService.updateUser(id, updatedAccount, createModal.data.role);
       setAccounts((prev) => prev.map((acc) => {
         const sameId = acc.id === id;
-        const sameRole = String(acc.role || "").toLowerCase() === String(accountToEdit.role || "").toLowerCase();
-        const sameEmail = String(acc.email || "").toLowerCase() === String(accountToEdit.email || "").toLowerCase();
+        const sameRole = String(acc.role || "").toLowerCase() === String(createModal.data.role || "").toLowerCase();
+        const sameEmail = String(acc.email || "").toLowerCase() === String(createModal.data.email || "").toLowerCase();
 
         return sameId && (sameRole || sameEmail) ? updated : acc;
       }));
-      setAccountToEdit(null);
-      setIsModalOpen(false);
+      createModal.close();
       setError("");
     } catch (e) {
       console.error("Update user failed:", e);
@@ -288,15 +238,14 @@ function SuperAdminDashboard({ onLogout }) {
   };
 
   const openDeleteModal = (account) => {
-    setAccountToDelete(account);
-    setIsDeleteModalOpen(true);
+    deleteModal.open(account);
   };
 
   const confirmDelete = async () => {
     if (isDeleting) return;
     setIsDeleting(true);
     try {
-      const target = accountToDelete;
+      const target = deleteModal.data;
       if (target?.id) {
         // Optimistic update - remove immediately
         setAccounts((prev) => prev.filter((acc) => {
@@ -306,8 +255,7 @@ function SuperAdminDashboard({ onLogout }) {
 
           return !(sameId && (sameRole || sameEmail));
         }));
-        setIsDeleteModalOpen(false);
-        setAccountToDelete(null);
+        deleteModal.close();
 
         await userService.deleteUser(target.id, target.role);
 
@@ -334,10 +282,9 @@ function SuperAdminDashboard({ onLogout }) {
 
   const handleLogout = () => {
     if (onLogout) {
-      onLogout();
-      setIsProfileOpen(false);
       // Clear any locally cached profile so next login reads backend user
       localStorage.removeItem("superAdminProfile");
+      onLogout();
     }
   };
 
@@ -389,7 +336,7 @@ function SuperAdminDashboard({ onLogout }) {
           </div>
           <div
             className="profile"
-            onClick={() => setIsProfileOpen(true)}
+            onClick={profileModal.open}
             style={{ cursor: "pointer" }}
           >
             {/* <span className="profile-name-with-bell">
@@ -495,8 +442,7 @@ function SuperAdminDashboard({ onLogout }) {
           <button
             className="create-account-btn"
             onClick={() => {
-              setAccountToEdit(null);
-              setIsModalOpen(true);
+              createModal.open(null);
             }}
           >
             <FaPlus /> Create <span className="hide-on-mobile">Account</span>
@@ -575,24 +521,21 @@ function SuperAdminDashboard({ onLogout }) {
 
       {/* CREATE / EDIT ACCOUNT MODAL */}
       < CreateAccountModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setAccountToEdit(null);
-        }}
+        isOpen={createModal.isOpen}
+        onClose={createModal.close}
         onCreate={handleCreateAccount}
         onUpdate={handleUpdateAccount}
-        account={accountToEdit}
+        account={createModal.data}
       />
 
       {/* PROFILE VIEW MODAL */}
       {
-        isProfileOpen && (
+        profileModal.isOpen && (
           <div className="modal-overlay">
             <div className="profile-modal-card">
               <span
                 className="close-icon"
-                onClick={() => setIsProfileOpen(false)}
+                onClick={profileModal.close}
               >
                 ✖
               </span>
@@ -607,8 +550,8 @@ function SuperAdminDashboard({ onLogout }) {
                 <button
                   className="edit-profile-btn"
                   onClick={() => {
-                    setIsEditProfileOpen(true);
-                    setIsChangePasswordOpen(false);
+                    editProfileModal.open();
+                    changePasswordModal.close();
                     setNewPassword("");
                     setConfirmNewPassword("");
                     setHideChangePasswordCta(false);
@@ -630,14 +573,14 @@ function SuperAdminDashboard({ onLogout }) {
 
       {/* EDIT PROFILE MODAL */}
       {
-        isEditProfileOpen && (
+        editProfileModal.isOpen && (
           <div className="modal-overlay">
             <div className="profile-modal-card">
               <span
                 className="close-icon"
                 onClick={() => {
-                  setIsEditProfileOpen(false);
-                  setIsChangePasswordOpen(false);
+                  editProfileModal.close();
+                  changePasswordModal.close();
                   setNewPassword("");
                   setConfirmNewPassword("");
                   setHideChangePasswordCta(false);
@@ -719,7 +662,7 @@ function SuperAdminDashboard({ onLogout }) {
                     onClick={() => {
                       setHideChangePasswordCta(true);
                       setTimeout(() => setHideChangePasswordCta(false), 700);
-                      setIsChangePasswordOpen(true);
+                      changePasswordModal.open();
                       setNewPassword("");
                       setConfirmNewPassword("");
                     }}
@@ -729,7 +672,7 @@ function SuperAdminDashboard({ onLogout }) {
                   </button>
                 )}
 
-                {isChangePasswordOpen && (
+                {changePasswordModal.isOpen && (
                   <div style={{ marginTop: 10 }}>
                     <input
                       type="password"
@@ -773,7 +716,7 @@ function SuperAdminDashboard({ onLogout }) {
 
       {/* DELETE CONFIRMATION MODAL */}
       {
-        isDeleteModalOpen && (
+        deleteModal.isOpen && (
           <div className="modal-overlay">
             <div className="delete-modal-card">
               <h3>Are you sure you want to delete this account?</h3>
@@ -781,7 +724,7 @@ function SuperAdminDashboard({ onLogout }) {
               <div className="delete-actions">
                 <button
                   className="cancel-btn"
-                  onClick={() => setIsDeleteModalOpen(false)}
+                  onClick={deleteModal.close}
                 >
                   Cancel
                 </button>

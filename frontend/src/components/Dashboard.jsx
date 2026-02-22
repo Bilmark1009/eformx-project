@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 
@@ -8,6 +8,10 @@ import notificationsService from "../services/notificationsService";
 import NotificationDropdown from "./NotificationDropdown";
 import AnalyticsCharts from "./AnalyticsCharts";
 import authService from "../services/authService";
+import { useTheme } from "../context/ThemeContext";
+import { useNotificationDropdown } from "../hooks/useNotificationDropdown";
+import { usePolling } from "../hooks/usePolling";
+import { useModal } from "../hooks/useModal";
 import {
   FaBell,
   FaPlus,
@@ -22,6 +26,8 @@ import {
   FaCamera,
   FaSearch,
   FaFilter,
+  FaMoon,
+  FaSun,
 } from "react-icons/fa";
 
 function Dashboard({ onLogout, userEmail, userName }) {
@@ -32,23 +38,13 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const shareModal = useModal();
+  const deleteModal = useModal();
+  const analyticsModal = useModal();
+  const responsesModal = useModal();
 
-
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [shareLink, setShareLink] = useState("");
-
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [formToDelete, setFormToDelete] = useState(null);
-
-  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
-  const [selectedFormAnalytics, setSelectedFormAnalytics] = useState(null);
-
-  const [isResponsesOpen, setIsResponsesOpen] = useState(false);
-  const [selectedFormResponses, setSelectedFormResponses] = useState(null);
   const [responsesSearchTerm, setResponsesSearchTerm] = useState("");
   const [activeResponseDetail, setActiveResponseDetail] = useState(null);
-
-  // Response filtering
   const [responseFilters, setResponseFilters] = useState({
     startDate: "",
     endDate: "",
@@ -56,45 +52,22 @@ function Dashboard({ onLogout, userEmail, userName }) {
     search: ""
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [responseCopyStatus, setResponseCopyStatus] = useState("");
 
-  // Notifications
   const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationsAnchorRef = useRef(null);
+  const { showNotifications, setShowNotifications, notificationsAnchorRef } = useNotificationDropdown();
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const navigate = useNavigate();
 
-  // Close notifications when clicking outside or scrolling outside (same as SuperAdminDashboard)
-  useEffect(() => {
-    if (!showNotifications) return;
-
-    const handlePointerDown = (event) => {
-      const anchor = notificationsAnchorRef.current;
-      if (!anchor) return;
-      if (anchor.contains(event.target)) return;
-      setShowNotifications(false);
-    };
-
-    const handleScrollOrWheel = (event) => {
-      const anchor = notificationsAnchorRef.current;
-      if (!anchor) return;
-      if (anchor.contains(event.target)) return;
-      setShowNotifications(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown, true);
-    document.addEventListener("touchstart", handlePointerDown, true);
-    window.addEventListener("scroll", handleScrollOrWheel, true);
-    window.addEventListener("wheel", handleScrollOrWheel, true);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown, true);
-      document.removeEventListener("touchstart", handlePointerDown, true);
-      window.removeEventListener("scroll", handleScrollOrWheel, true);
-      window.removeEventListener("wheel", handleScrollOrWheel, true);
-    };
-  }, [showNotifications]);
-  const [responseCopyStatus, setResponseCopyStatus] = useState("");
+  const loadNotifications = useCallback(async () => {
+    try {
+      const items = await notificationsService.list();
+      setNotifications(items);
+    } catch (e) {
+      // ignore transient errors
+    }
+  }, []);
+  usePolling(loadNotifications, 4000);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProfileEditMode, setIsProfileEditMode] = useState(false);
@@ -207,33 +180,22 @@ function Dashboard({ onLogout, userEmail, userName }) {
   // ===== SHARE =====
   const handleShareForm = (formId) => {
     const link = `${window.location.origin}/form/${formId}`;
-    setShareLink(link);
-    setIsShareModalOpen(true);
-  };
-  const closeShareModal = () => {
-    setIsShareModalOpen(false);
-    setShareLink("");
+    shareModal.open({ link });
   };
 
   // ===== DELETE =====
   const handleDeleteForm = (formId) => {
-    setFormToDelete(formId);
-    setIsDeleteModalOpen(true);
+    deleteModal.open({ formId });
   };
   const confirmDelete = async () => {
     try {
-      await formService.deleteForm(formToDelete);
-      setForms(forms.filter((form) => form.id !== formToDelete));
-      setIsDeleteModalOpen(false);
-      setFormToDelete(null);
+      await formService.deleteForm(deleteModal.data.formId);
+      setForms(forms.filter((form) => form.id !== deleteModal.data.formId));
+      deleteModal.close();
     } catch (err) {
       console.error("Failed to delete form:", err);
       alert("Failed to delete form.");
     }
-  };
-  const cancelDelete = () => {
-    setIsDeleteModalOpen(false);
-    setFormToDelete(null);
   };
 
   // ===== ANALYTICS (Stats Overview) =====
@@ -269,14 +231,13 @@ function Dashboard({ onLogout, userEmail, userName }) {
       // Ensure completionRate is derived from form_attempts even if backend payload is stale
       mergedAnalytics.completionRate = tracked > 0 ? Math.round((completed / tracked) * 1000) / 10 : 0;
 
-      setSelectedFormAnalytics({
+      analyticsModal.open({
         id: analyticsData.form_id || formId,
         title: analyticsData.title || (selected?.title) || "Form Analytics",
         analytics: mergedAnalytics,
         fields: Array.isArray(formFields) ? formFields : [],
         responses: Array.isArray(responses) ? responses : []
       });
-      setIsAnalyticsOpen(true);
     } catch (err) {
       console.error("Failed to fetch analytics:", err);
       alert("Failed to load analytics data.");
@@ -287,15 +248,13 @@ function Dashboard({ onLogout, userEmail, userName }) {
   const handleViewResponses = async (formId) => {
     try {
       const responses = await formService.getFormResponses(formId);
-      console.log('Fetched responses:', responses);
       const selected = forms.find((f) => String(f.id) === String(formId));
       const formFields = selected?.fields || selected?.form_fields || selected?.formFields || selected?.schema || [];
-      setSelectedFormResponses({
+      responsesModal.open({
         ...(selected || {}),
         fields: Array.isArray(formFields) ? formFields : [],
         responses: Array.isArray(responses) ? responses : []
       });
-      setIsResponsesOpen(true);
     } catch (err) {
       console.error("Failed to fetch responses:", err);
       alert("Could not load responses.");
@@ -303,7 +262,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   const exportResponses = async (format) => {
-    if (!selectedFormResponses) return;
+    if (!responsesModal.data) return;
 
     try {
       // Build filters object for API
@@ -325,8 +284,8 @@ function Dashboard({ onLogout, userEmail, userName }) {
       }
 
       const response = format === 'csv'
-        ? await formService.exportResponsesCsv(selectedFormResponses.id, filters)
-        : await formService.exportResponsesXlsx(selectedFormResponses.id, filters);
+        ? await formService.exportResponsesCsv(responsesModal.data.id, filters)
+        : await formService.exportResponsesXlsx(responsesModal.data.id, filters);
 
       // Create blob URL and trigger download
       const blob = new Blob([response.data]);
@@ -335,7 +294,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
       link.href = url;
 
       const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `${selectedFormResponses.title}_responses_${timestamp}.${format}`;
+      const filename = `${responsesModal.data.title}_responses_${timestamp}.${format}`;
       link.download = filename;
 
       document.body.appendChild(link);
@@ -359,9 +318,9 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
   // ===== EXPORT CSV (RESPONDENT LEVEL) =====
   const handleExportResponsesCSV = async () => {
-    if (!selectedFormResponses) return;
+    if (!responsesModal.data) return;
     try {
-      const fieldOrder = (selectedFormResponses.fields || []).map((field, idx) => ({
+      const fieldOrder = (responsesModal.data.fields || []).map((field, idx) => ({
         id: field?.id ?? field?.name ?? `q${idx + 1}`,
         label: field?.label || field?.title || field?.question || field?.name || `Question ${idx + 1}`,
       }));
@@ -373,7 +332,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
         ...fieldOrder.map((f) => f.label),
       ];
 
-      const rows = (selectedFormResponses.responses || []).map((r) => {
+      const rows = (responsesModal.data.responses || []).map((r) => {
         const entries = normalizeAnswerEntries(r.responses);
         return [
           r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
@@ -397,7 +356,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
       });
 
       const blob = new Blob([csvContent], { type: "text/csv" });
-      downloadBlob(blob, `${selectedFormResponses.title || "form"}_responses.csv`);
+      downloadBlob(blob, `${responsesModal.data.title || "form"}_responses.csv`);
     } catch (err) {
       console.error("Failed to export responses CSV", err);
       alert("Could not export CSV. Please try again.");
@@ -408,10 +367,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
 
 
   const handleExportAnalyticsXLSX = async () => {
-    if (!selectedFormAnalytics?.id) return;
+    if (!analyticsModal.data?.id) return;
     try {
-      const res = await formService.exportAnalyticsXlsx(selectedFormAnalytics.id);
-      downloadBlob(res.data, `${selectedFormAnalytics.title || "form"}_analytics.xlsx`);
+      const res = await formService.exportAnalyticsXlsx(analyticsModal.data.id);
+      downloadBlob(res.data, `${analyticsModal.data.title || "form"}_analytics.xlsx`);
     } catch (err) {
       console.error("Failed to export analytics XLSX", err);
       alert("Could not export analytics XLSX. Please try again.");
@@ -570,8 +529,8 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   const responseFieldLabelMap = useMemo(
-    () => mapFieldLabels(selectedFormResponses?.fields || []),
-    [selectedFormResponses]
+    () => mapFieldLabels(responsesModal.data?.fields || []),
+    [responsesModal.data]
   );
 
   const normalizeAnswerEntries = (responses) => {
@@ -677,8 +636,8 @@ function Dashboard({ onLogout, userEmail, userName }) {
   };
 
   const filteredResponses =
-    selectedFormResponses && Array.isArray(selectedFormResponses.responses)
-      ? selectedFormResponses.responses.filter((response) => {
+    responsesModal.data && Array.isArray(responsesModal.data.responses)
+      ? responsesModal.data.responses.filter((response) => {
         // Date range filter
         if (responseFilters.startDate) {
           const responseDate = new Date(response.created_at).toISOString().split('T')[0];
@@ -893,10 +852,10 @@ function Dashboard({ onLogout, userEmail, userName }) {
       {/* CREATE / EDIT MODAL (REMOVED) */}
 
       {/* SHARE MODAL */}
-      {isShareModalOpen && (
-        <div className="modal-overlay" onClick={closeShareModal}>
+      {shareModal.isOpen && (
+        <div className="modal-overlay" onClick={shareModal.close}>
           <div className="share-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close-icon" onClick={closeShareModal} aria-label="Close">
+            <button className="modal-close-icon" onClick={shareModal.close} aria-label="Close">
               ✕
             </button>
             <h2>Share Form</h2>
@@ -904,7 +863,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
             <div className="share-link-container">
               <input
                 type="text"
-                value={shareLink}
+                value={shareModal.data?.link || ""}
                 readOnly
                 onFocus={(e) => e.target.select()}
                 className="share-link-input"
@@ -913,7 +872,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 className="copy-link-btn"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(shareLink);
+                    await navigator.clipboard.writeText(shareModal.data?.link);
                     // Show success feedback
                     const btn = document.querySelector('.copy-link-btn');
                     const originalText = btn.textContent;
@@ -937,13 +896,13 @@ function Dashboard({ onLogout, userEmail, userName }) {
       )}
 
       {/* DELETE MODAL */}
-      {isDeleteModalOpen && (
+      {deleteModal.isOpen && (
         <div className="modal-overlay">
           <div className="delete-modal">
             <h2>Delete Form</h2>
             <p>This action cannot be undone.</p>
             <div className="delete-actions">
-              <button className="cancel-btn" onClick={cancelDelete}>
+              <button className="cancel-btn" onClick={deleteModal.close}>
                 Cancel
               </button>
               <button className="delete-btn" onClick={confirmDelete}>
@@ -955,17 +914,14 @@ function Dashboard({ onLogout, userEmail, userName }) {
       )}
 
       {/* ANALYTICS MODAL - Stats Overview */}
-      {isAnalyticsOpen && selectedFormAnalytics && (
+      {analyticsModal.isOpen && analyticsModal.data && (
         <div className="modal-overlay">
           <div className="analytics-stats-modal">
             <div className="analytics-stats-header">
-              <h2>{selectedFormAnalytics.title}</h2>
+              <h2>{analyticsModal.data.title}</h2>
               <button
                 className="close-analytics-btn"
-                onClick={() => {
-                  setIsAnalyticsOpen(false);
-                  setSelectedFormAnalytics(null);
-                }}
+                onClick={analyticsModal.close}
               >
                 ✕
               </button>
@@ -974,28 +930,28 @@ function Dashboard({ onLogout, userEmail, userName }) {
               <div className="stat-card">
                 <div className="stat-label">Total Respondents</div>
                 <div className="stat-value">
-                  {selectedFormAnalytics.analytics.totalRespondents}
+                  {analyticsModal.data.analytics.totalRespondents}
                 </div>
               </div>
               <div className="stat-card">
                 <div className="stat-label">Completion Rate</div>
                 <div className="stat-value">
-                  {selectedFormAnalytics.analytics.completionRate}
+                  {analyticsModal.data.analytics.completionRate}
                   <span className="stat-percentage">%</span>
                 </div>
               </div>
               <div className="stat-card">
                 <div className="stat-label">Questions</div>
                 <div className="stat-value">
-                  {selectedFormAnalytics.fields?.length || 0}
+                  {analyticsModal.data.fields?.length || 0}
                 </div>
               </div>
             </div>
 
             <div className="analytics-visuals">
               <AnalyticsCharts
-                form={selectedFormAnalytics}
-                responses={selectedFormAnalytics.responses}
+                form={analyticsModal.data}
+                responses={analyticsModal.data.responses}
               />
             </div>
             <div className="analytics-stats-footer">
@@ -1013,11 +969,11 @@ function Dashboard({ onLogout, userEmail, userName }) {
       )}
 
       {/* RESPONSES MODAL - Detailed Table */}
-      {isResponsesOpen && selectedFormResponses && (
+      {responsesModal.isOpen && responsesModal.data && (
         <div className="modal-overlay">
           <div className="responses-modal">
             <div className="responses-header">
-              <h2>{selectedFormResponses.title} - Responses ({filteredResponses.length})</h2>
+              <h2>{responsesModal.data.title} - Responses ({filteredResponses.length})</h2>
               <div className="responses-controls">
                 <div className="responses-search-wrapper">
                   <FaSearch className="responses-search-icon" />
@@ -1058,8 +1014,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
               <button
                 className="close-responses-btn"
                 onClick={() => {
-                  setIsResponsesOpen(false);
-                  setSelectedFormResponses(null);
+                  responsesModal.close();
                   setResponsesSearchTerm("");
                   setActiveResponseDetail(null);
                   setResponseFilters({ startDate: "", endDate: "", fieldFilters: [], search: "" });
@@ -1104,7 +1059,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
                         }}
                       >
                         <option value="">Select field...</option>
-                        {selectedFormResponses.fields?.map(field => (
+                        {responsesModal.data?.fields?.map(field => (
                           <option key={field.id} value={field.id}>
                             {field.label}
                           </option>

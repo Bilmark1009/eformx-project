@@ -9,6 +9,7 @@ import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import NotificationsPage from "./pages/NotificationsPage";
 import FormBuilder from "./pages/FormBuilder";
+import { ThemeProvider } from "./context/ThemeContext";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -47,8 +48,9 @@ function App() {
   }
 
   return (
-    <Router>
-      <Routes>
+    <ThemeProvider>
+      <Router>
+        <Routes>
         {/* Public Form Route - Accessible by anyone */}
         <Route path="/form/:id" element={<PublicFormPage />} />
         {/* Password reset routes */}
@@ -104,7 +106,8 @@ function App() {
         {/* Redirect unknown routes to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
+      </Router>
+    </ThemeProvider>
   );
 }
 

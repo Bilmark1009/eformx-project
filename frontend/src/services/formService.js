@@ -81,19 +81,21 @@ const formService = {
         return api.get(`/forms/${id}/analytics/export-xlsx`, { responseType: 'blob' });
     },
 
-    async exportResponsesCsv(id, filters = {}) {
+    _buildFilterParams(filters = {}) {
         const params = new URLSearchParams();
         Object.entries(filters).forEach(([key, value]) => {
             if (value) params.append(key, value);
         });
+        return params;
+    },
+
+    async exportResponsesCsv(id, filters = {}) {
+        const params = this._buildFilterParams(filters);
         return api.get(`/forms/${id}/responses/export-csv?${params}`, { responseType: 'blob' });
     },
 
     async exportResponsesXlsx(id, filters = {}) {
-        const params = new URLSearchParams();
-        Object.entries(filters).forEach(([key, value]) => {
-            if (value) params.append(key, value);
-        });
+        const params = this._buildFilterParams(filters);
         return api.get(`/forms/${id}/responses/export-xlsx?${params}`, { responseType: 'blob' });
     },
 

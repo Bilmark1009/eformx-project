@@ -1,12 +1,31 @@
+:root {
+  --sa-header-bg: #0f4c5c;
+  --sa-bg: #e9f2f4;
+  --sa-text-primary: #1f2937;
+  --sa-text-secondary: #6b7280;
+  --sa-card-bg: #ffffff;
+  --sa-border-color: #e5e7eb;
+  --transition: all 0.3s ease;
+}
+
+[data-theme="dark"] {
+  --sa-header-bg: #0f4c5c;
+  --sa-bg: #0f172a;
+  --sa-text-primary: #e2e8f0;
+  --sa-text-secondary: #94a3b8;
+  --sa-card-bg: #1e293b;
+  --sa-border-color: #334155;
+}
+
 .superadmin {
   min-height: 100vh;
-  background: #e9f2f4;
+  background: var(--sa-bg);
   font-family: "Segoe UI", sans-serif;
 }
 
 /* HEADER */
 .sa-header {
-  background: #0f4c5c;
+  background: var(--sa-header-bg);
   color: white;
   padding: 15px 30px;
   display: flex;
