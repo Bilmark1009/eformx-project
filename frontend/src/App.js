@@ -1,15 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
-import PublicFormPage from "./pages/PublicFormPage";
 import authService from "./services/authService";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
-import NotificationsPage from "./pages/NotificationsPage";
-import FormBuilder from "./pages/FormBuilder";
 import { ThemeProvider } from "./context/ThemeContext";
+
+const PublicFormPage = lazy(() => import("./pages/PublicFormPage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const FormBuilder = lazy(() => import("./pages/FormBuilder"));
+
+const LoadingFallback = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh'
+  }}>
+    <p>Loading...</p>
+  </div>
+);
 
 function App() {
   const [user, setUser] = useState(null);
@@ -52,7 +64,11 @@ function App() {
       <Router>
         <Routes>
         {/* Public Form Route - Accessible by anyone */}
-        <Route path="/form/:id" element={<PublicFormPage />} />
+        <Route path="/form/:id" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <PublicFormPage />
+          </Suspense>
+        } />
         {/* Password reset routes */}
         <Route path="/forgot" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -60,7 +76,9 @@ function App() {
           path="/notifications"
           element={
             user ? (
-              <NotificationsPage />
+              <Suspense fallback={<LoadingFallback />}>
+                <NotificationsPage />
+              </Suspense>
             ) : (
               <Navigate to="/" replace />
             )
@@ -70,7 +88,9 @@ function App() {
           path="/builder"
           element={
             user ? (
-              <FormBuilder />
+              <Suspense fallback={<LoadingFallback />}>
+                <FormBuilder />
+              </Suspense>
             ) : (
               <Navigate to="/" replace />
             )
@@ -80,7 +100,9 @@ function App() {
           path="/builder/:id"
           element={
             user ? (
-              <FormBuilder />
+              <Suspense fallback={<LoadingFallback />}>
+                <FormBuilder />
+              </Suspense>
             ) : (
               <Navigate to="/" replace />
             )

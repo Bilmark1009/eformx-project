@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import {
     BarChart,
     Bar,
@@ -133,4 +133,4 @@ const AnalyticsCharts = ({ form, responses }) => {
     );
 };
 
-export default AnalyticsCharts;
+export default memo(AnalyticsCharts);

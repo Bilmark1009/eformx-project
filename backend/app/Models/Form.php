@@ -23,7 +23,7 @@ class Form extends Model
         'branding' => 'array',
     ];
 
-    protected $appends = ['analytics'];
+    protected $with = ['attempts'];
 
     // Relationship to User (works for both User and SuperAdmin via user_id)
     public function user()
@@ -42,17 +42,15 @@ class Form extends Model
         return $this->hasMany(FormAttempt::class);
     }
 
-    // Computed analytics attribute
-    public function getAnalyticsAttribute()
+    public function getAnalytics()
     {
-        $attemptCounts = $this->attempts()
-            ->selectRaw('status, COUNT(*) as total')
+        $attemptsByStatus = $this->attempts
             ->groupBy('status')
-            ->pluck('total', 'status');
+            ->map->count();
 
-        $completedAttempts = $attemptCounts['completed'] ?? 0;
-        $abandonedAttempts = $attemptCounts['abandoned'] ?? 0;
-        $startedAttempts = $attemptCounts['started'] ?? 0;
+        $completedAttempts = $attemptsByStatus['completed'] ?? 0;
+        $abandonedAttempts = $attemptsByStatus['abandoned'] ?? 0;
+        $startedAttempts = $attemptsByStatus['started'] ?? 0;
 
         // Fallback: if no completed attempts were recorded, use submitted responses as the completed count
         if ($completedAttempts === 0) {
@@ -60,7 +58,7 @@ class Form extends Model
         }
         $trackedAttempts = $completedAttempts + $abandonedAttempts;
 
-        $recentActivity = $this->attempts()
+        $recentActivity = $this->attempts
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
 

@@ -7,6 +7,7 @@ import formService from "../services/formService";
 import notificationsService from "../services/notificationsService";
 import NotificationDropdown from "./NotificationDropdown";
 import AnalyticsCharts from "./AnalyticsCharts";
+import FormCard from "./FormCard";
 import authService from "../services/authService";
 import { useTheme } from "../context/ThemeContext";
 import { useNotificationDropdown } from "../hooks/useNotificationDropdown";
@@ -129,19 +130,7 @@ function Dashboard({ onLogout, userEmail, userName }) {
     try {
       setLoading(true);
       const data = await formService.getForms();
-      console.log('=== FETCH FORMS DEBUG ===');
-      console.log('Raw API response:', data);
-      console.log('Is array?', Array.isArray(data));
-      console.log('Length:', data?.length);
-
-      if (Array.isArray(data) && data.length > 0) {
-        console.log('First form structure:', data[0]);
-        console.log('First form title:', data[0]?.title);
-        console.log('First form description:', data[0]?.description);
-      }
-
       setForms(Array.isArray(data) ? data : []);
-      console.log('Forms set to state');
     } catch (err) {
       console.error("Failed to fetch forms:", err);
       setError("Failed to load forms. Please refresh.");
@@ -758,78 +747,18 @@ function Dashboard({ onLogout, userEmail, userName }) {
                 </button>
               </div>
             ) : forms.length > 0 ? (
-              forms.map((form) => {
-                console.log('Rendering form card:', form.id, 'Title:', form.title);
-                return (
-                  <div
-                    key={form.id}
-                    className="form-card"
-                    onClick={() => handleViewResponses(form.id)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <div className="form-card-header">
-                      <h2 className={(form.title || "").length > 30 ? "long-title" : ""}>
-                        {form.title || "Untitled Form"}
-                      </h2>
-                      <div className="form-card-status-group">
-                        <span className={`status-badge ${String(form.status || 'active').toLowerCase()}`}>
-                          {String(form.status || 'active').toUpperCase()}
-                        </span>
-                        <div className="card-actions">
-                          <FaChartBar
-                            className="action-icon"
-                            title="Analytics"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAnalytics(form.id);
-                            }}
-                          />
-                          <FaTrash
-                            className="action-icon"
-                            title="Delete"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteForm(form.id);
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <p className="form-description">{form.description || "No description provided."}</p>
-                    <div className="card-footer">
-                      <button
-                        className="btn-link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShareForm(form.id);
-                        }}
-                      >
-                        <FaShareAlt /> Share
-                      </button>
-                      <button
-                        className="btn-link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditForm(form.id);
-                        }}
-                      >
-                        <FaEdit /> Edit
-                      </button>
-                      <button
-                        className={`toggle-switch ${String(form.status || 'active').toLowerCase() === 'active' ? 'active' : 'inactive'}`}
-                        title={String(form.status || 'active').toLowerCase() === 'active' ? 'Click to deactivate' : 'Click to activate'}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleFormStatus(form.id);
-                        }}
-                        aria-label={String(form.status || 'active').toLowerCase() === 'active' ? 'Deactivate form' : 'Activate form'}
-                      >
-                        <span className="knob" />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })
+              forms.map((form) => (
+                <FormCard
+                  key={form.id}
+                  form={form}
+                  onViewResponses={handleViewResponses}
+                  onAnalytics={handleAnalytics}
+                  onDelete={handleDeleteForm}
+                  onShare={handleShareForm}
+                  onEdit={handleEditForm}
+                  onToggleStatus={handleToggleFormStatus}
+                />
+              ))
             ) : (
               <div className="empty-state">
                 <FaPlus size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
